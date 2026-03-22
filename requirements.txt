@@ -1,0 +1,11 @@
+# Google AI Mode Skill - Python Dependencies
+# Install with: pip install -r requirements.txt
+# Note: This skill has NO external Python dependencies for core functionality
+#       All HTML parsing is done via agent-browser's native commands
+
+# Optional development dependencies
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Type checking
+mypy>=1.0.0
