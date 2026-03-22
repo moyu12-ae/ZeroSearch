@@ -8,6 +8,10 @@ Transform your Trae agent into a research powerhouse with ZeroSearch—zero toke
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/moyu12-ae/ZeroSearch/ci.svg)](https://github.com/moyu12-ae/ZeroSearch/actions)
+[![Version](https://img.shields.io/badge/Version-6.4.0-blue.svg)](https://github.com/moyu12-ae/ZeroSearch/releases)
+[![GitHub stars](https://img.shields.io/github/stars/moyu12-ae/ZeroSearch.svg)](https://github.com/moyu12-ae/ZeroSearch/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/moyu12-ae/ZeroSearch.svg)](https://github.com/moyu12-ae/ZeroSearch/network)
 
 **For: Trae IDE users on macOS, Linux, or Windows (WSL)**
 
