@@ -1,11 +1,11 @@
 ---
 name: zerosearch
-description: Use this skill whenever the user needs current information, documentation, coding examples, or web research beyond the knowledge cutoff. Two strategies — first try Chrome DevTools browser to access official sources directly (fastest, no CAPTCHA), or run the Camoufox Python engine for Google AI-synthesized overviews. Returns structured markdown with source citations. Trigger when user mentions web research, current events, latest docs, API references, technical comparisons, "search for", "look up", or asks about anything post-2025.
+description: Use this skill whenever the user needs current information, documentation, coding examples, or web research beyond the knowledge cutoff. Uses Camoufox (Firefox anti-fingerprinting browser) to query Google AI Mode (udm=50) for AI-synthesized overviews from 100+ sources with citations. Returns structured markdown with source citations. Trigger when user mentions web research, current events, latest docs, API references, technical comparisons, "search for", "look up", or asks about anything post-2025.
 ---
 
 # ZeroSearch
 
-Two-tier web research skill. **Primary**: Chrome DevTools MCP browser navigation to official sources for real-time, verifiable information. **Secondary**: Camoufox Python engine for Google AI Mode search (when regional/browser conditions permit).
+Camoufox-powered web research skill. Uses Firefox anti-fingerprinting browser to query Google AI Mode (`udm=50`) for AI-synthesized overviews with source citations.
 
 ## When to Use This Skill
 
@@ -18,79 +18,21 @@ Two-tier web research skill. **Primary**: Chrome DevTools MCP browser navigation
 - Research requiring verifiable citations and sources
 - Any question where "I think" isn't good enough — verify against live sources
 
-## Research Strategy
+## How It Works
 
-ZeroSearch provides two complementary approaches:
-
-### Strategy 1: Chrome DevTools Browser Research (Recommended First)
-
-**This is a skill-level methodology** — it teaches you HOW to do real-time web research using the Chrome DevTools MCP tools available in your environment. It requires no Python dependencies and never triggers CAPTCHA.
+ZeroSearch launches Camoufox (Firefox v135+ with anti-fingerprinting) for each search, navigates to Google AI Mode (`udm=50`), extracts the AI-synthesized overview and source citations, converts to structured markdown, then shuts down the browser.
 
 ```
-1. Identify the authoritative source (e.g. react.dev, nextjs.org, eur-lex.europa.eu)
-2. Navigate with Chrome DevTools MCP: mcp__chrome-devtools-mcp__navigate_page
-3. Extract data with evaluate_script (headings, code, key facts)
-4. Cross-verify across at least 2 independent sources
-5. Preserve all source URLs for citation
+Camoufox Firefox → Google AI Mode (udm=50) → AI Content Extraction → Markdown + Footnotes
 ```
 
-**When to use**: Official docs, regulatory texts, GitHub repos, any site with stable URLs.
+For research that doesn't need Google's AI synthesis (official docs, GitHub repos, regulatory texts), prefer **WebFetch** or direct navigation to authoritative sources.
 
-### Strategy 2: Camoufox Python Engine (Google AI Mode)
-
-This project's Python pipeline uses Camoufox (Firefox v135+ with anti-fingerprinting) to query Google AI Mode (`udm=50`). Use when you specifically need Google's AI-synthesized overview from 100+ sources.
+## CLI Usage
 
 ```bash
 python src/search/run.py --query "your optimized query" --save --debug
 ```
-
-**Requirements**: Camoufox submodule initialized, Google AI Mode accessible from your region. The browser starts on each search and automatically closes when done -- no residual processes.
-
-### Decision Flow
-
-```
-User needs web research
-  │
-  ├─ Authoritative official source known?
-  │   └─ YES → Use Strategy 1 (Chrome DevTools browser)
-  │
-  ├─ Need broad Google AI synthesis?
-  │   └─ Try `python src/search/run.py`
-  │       ├─ Success → Use AI Overview + citations
-  │       ├─ CAPTCHA → Run with --show-browser to solve manually
-  │       └─ Unavailable → Use Strategy 1 or WebFetch
-  │
-  └─ General research → Strategy 1 preferred (faster, no CAPTCHA risk)
-```
-
-## Chrome DevTools MCP Research Methodology
-
-When using the browser for research, follow this rigorous approach:
-
-1. **Identify authoritative sources first** — don't guess URLs, navigate to known official domains
-2. **Extract data programmatically** — use `evaluate_script` to pull headings, code blocks, and structured data
-3. **Cross-verify across sources** — visit at least 2 independent sources before presenting findings
-4. **Preserve source URLs** — every claim must link to the exact page you visited
-5. **Note what you couldn't verify** — be transparent about information gaps
-
-### Example: Researching a new library feature
-
-```javascript
-// Use evaluate_script to extract structured content
-() => {
-  const article = document.querySelector('article, main');
-  const headings = article.querySelectorAll('h1, h2, h3');
-  const codeBlocks = article.querySelectorAll('pre code');
-  return {
-    title: document.title,
-    url: location.href,
-    headings: Array.from(headings).map(h => ({tag: h.tagName, text: h.textContent.trim()})),
-    codeSamples: Array.from(codeBlocks).slice(0, 6).map(c => c.textContent.substring(0, 600))
-  };
-}
-```
-
-## CLI Flags (Python Engine)
 
 | Flag | Required | Description |
 |------|:--:|------|
@@ -116,13 +58,13 @@ Always optimize queries before executing search. Specificity determines result q
 | "Bun vs Node speed" | "Bun vs Node.js performance comparison 2026 (cold start time, HTTP throughput req/s, memory usage). Provide benchmark data and sources." |
 | "EU AI rules" | "EU AI Act requirements 2026 for SaaS startups (risk classification, compliance steps, penalties). Include official EU sources." |
 
-## First-Time Setup (Python Engine)
+## First-Time Setup
 
 The project uses a Camoufox git submodule. Clone with:
 
 ```bash
-git clone --recurse-submodules <repo-url>
-cd zerosearch
+git clone --recurse-submodules https://github.com/moyu12-ae/ZeroSearch.git ~/.claude/skills/zerosearch
+cd ~/.claude/skills/zerosearch
 ./setup.sh
 ```
 
@@ -132,7 +74,7 @@ git submodule update --init --recursive
 ./setup.sh
 ```
 
-**Technical Requirements**: Python 3.8+, Camoufox v135+ (Firefox-based, auto-installed).
+**Technical Requirements**: Python 3.8+, Camoufox v135+ (Firefox-based, auto-installed via `python -m camoufox fetch`).
 
 ## CAPTCHA Handling
 
@@ -166,14 +108,13 @@ https://react.dev/reference/rsc/server-actions
 
 | Issue | Solution |
 |-------|----------|
-| Chrome DevTools MCP not connected | Run Tier 2 Python script instead, or use WebFetch |
 | `libs/camoufox/` empty | `git submodule update --init --recursive` |
-| Camoufox not found | `python -m camoufox install` |
-| AI Mode not available | Your region doesn't support Google AI Mode. Use Tier 1 browser research or VPN to US/UK |
+| Camoufox not found | `python -m camoufox fetch` |
+| AI Mode not available | Your region doesn't support Google AI Mode. Use VPN to US/UK, or fall back to WebFetch for direct source access |
 | Profile corrupted | Delete `~/.cache/zerosearch/firefox_profile/` |
 | CAPTCHA every search | Profile may be stale — delete and re-solve once with `--show-browser` |
 
-**Exit Codes (Python Engine):**
+**Exit Codes:**
 - `0` — Success
 - `1` — General error
 - `2` — CAPTCHA required (use `--show-browser`)
@@ -183,10 +124,10 @@ https://react.dev/reference/rsc/server-actions
 
 ## Best Practices
 
-1. **Prefer Tier 1 when MCP is available** — faster, more reliable, no CAPTCHA
-2. **Optimize queries before search** — specificity = quality
-3. **Cross-verify across sources** — never rely on a single page
-4. **Preserve source URLs** — every claim must be traceable
-5. **Be transparent about limitations** — note when information couldn't be verified
-6. **Use `--debug` for performance issues** — reveals which stage is slow
-7. **Clone with `--recurse-submodules`** — avoids missing Camoufox dependency
+1. **Optimize queries before search** — specificity = quality
+2. **Cross-verify across sources** — never rely on a single page
+3. **Preserve source URLs** — every claim must be traceable
+4. **Be transparent about limitations** — note when information couldn't be verified
+5. **Use `--debug` for performance issues** — reveals which stage is slow
+6. **Clone with `--recurse-submodules`** — avoids missing Camoufox dependency
+7. **Fall back to WebFetch** — when Google AI Mode is unavailable, navigate directly to official docs
