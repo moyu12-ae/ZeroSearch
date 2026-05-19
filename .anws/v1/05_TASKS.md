@@ -183,7 +183,7 @@ graph TD
 
 ### Phase 3: Integration — 状态机与健康检查
 
-- [ ] **T2.3.1** [REQ-002]: 实现浏览器预热常驻状态机
+- [x] **T2.3.1** [REQ-002]: 实现浏览器预热常驻状态机
   - **描述**: COLD → WARMING → READY → STALE → DEAD 五状态机，含状态转换逻辑和心跳检测
   - **输入**:
     - 04_SYSTEM_DESIGN/browser-engine.md §5 状态机设计（状态图 + 转换决策表）
@@ -200,7 +200,7 @@ graph TD
   - **依赖**: T2.1.1, T2.2.1
   - **优先级**: P0
 
-- [ ] **T2.3.2** [REQ-002]: 实现浏览器健康检查与优雅关闭
+- [x] **T2.3.2** [REQ-002]: 实现浏览器健康检查与优雅关闭
   - **描述**: health_check() 检测浏览器进程/browser context 有效性；shutdown() 优雅关闭（清缓存→kill 进程→标记 DEAD）
   - **输入**:
     - 04_SYSTEM_DESIGN/browser-engine.md §6.1 接口契约（shutdown, health_check）、§15 可观测性
@@ -345,7 +345,7 @@ graph TD
 
 ### Phase 1: Foundation — CLI
 
-- [ ] **T5.1.1** [REQ-005]: 实现 CLI 入口 + venv 包装器
+- [x] **T5.1.1** [REQ-005]: 实现 CLI 入口 + venv 包装器
   - **描述**: argparse CLI 解析（--query 必填, --save, --debug, --show-browser 可选），venv 包装器兼容原 run.py 接口
   - **输入**:
     - 04_SYSTEM_DESIGN/search-engine.md §5 CLI 设计（参数表、退出码）
