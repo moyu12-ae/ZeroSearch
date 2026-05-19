@@ -1,6 +1,6 @@
 <div align="center">
 
-# Google AI Mode Skill
+# ZeroSearch
 
 ### Claude Code 的 AI 增强搜索能力
 
@@ -26,10 +26,10 @@ Powered by **Camoufox** (Firefox-based anti-fingerprinting browser)
 
 ```bash
 # 1. 克隆（含子模块）
-git clone --recurse-submodules https://github.com/PleasePrompto/google-ai-mode-skill.git ~/.claude/skills/google-ai-mode
+git clone --recurse-submodules https://github.com/moyu12-ae/ZeroSearch.git ~/.claude/skills/zerosearch
 
 # 2. 进入目录
-cd ~/.claude/skills/google-ai-mode
+cd ~/.claude/skills/zerosearch
 
 # 3. 安装
 bash setup.sh
@@ -94,7 +94,7 @@ Camoufox Firefox (v135+) → Google AI Mode (udm=50) → AI 内容提取 → Mar
 ## 项目结构
 
 ```
-google-ai-mode-skill/
+zerosearch/
 ├── SKILL.md              # Claude Code Skill 定义
 ├── README.md             # 本文件
 ├── setup.sh              # 首次安装脚本
@@ -145,7 +145,7 @@ python src/search/run.py --query "your query" --show-browser
 |------|---------|
 | Camoufox 未找到 | `git submodule update --init --recursive` |
 | Firefox 未安装 | `python -m camoufox fetch` |
-| Profile 损坏 | 删除 `~/.cache/google-ai-mode-skill/firefox_profile/` |
+| Profile 损坏 | 删除 `~/.cache/zerosearch/firefox_profile/` |
 | AI Mode 不可用 | 当前地区/语言不支持，尝试 VPN 到美国/英国 |
 | 依赖安装失败 | `pip install --break-system-packages` (Homebrew Python) |
 
@@ -192,6 +192,6 @@ MIT License — 见 [LICENSE](LICENSE) 文件
 
 ## 致谢
 
-- 基于 [google-ai-mode-skill](https://github.com/PleasePrompto/google-ai-mode-skill) 原版重构
+- 基于 [zerosearch](https://github.com/moyu12-ae/ZeroSearch) 原版重构
 - 浏览器引擎: [Camoufox](https://github.com/daijro/camoufox)
 - 架构管理: [Anws](https://github.com/anthropics/anws)

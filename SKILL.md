@@ -1,9 +1,9 @@
 ---
-name: google-ai-mode-skill
+name: zerosearch
 description: Use this skill when the user requests current information, documentation, coding examples, or web research beyond the knowledge cutoff. Queries Google's AI Search mode to retrieve comprehensive AI-generated overviews with source citations from 100+ websites. Returns markdown with inline footnoted references [1][2][3]. You will receive a detailed Markdown file with references and information summarized directly from Google's AI search. Ideal for you to get new information and clues for further research.
 ---
 
-# Google AI Mode Skill
+# ZeroSearch
 
 Query Google's AI Search mode to retrieve comprehensive, source-grounded answers from across the web. Powered by Camoufox (Firefox-based) with anti-fingerprinting for stealth browsing.
 
@@ -20,7 +20,7 @@ Trigger this skill when the user:
 ## How It Works
 
 1. **Camoufox Firefox Engine**: Uses Camoufox (Firefox v135+) with built-in anti-fingerprinting -- evades Google's bot detection far more reliably than Chromium-based alternatives
-2. **Warm-Keep Persistent Context**: Reuses `BrowserContext` across searches at `~/.cache/google-ai-mode-skill/camoufox_profile`, preserving cookies and session state to avoid repeated CAPTCHAs
+2. **Warm-Keep Persistent Context**: Reuses `BrowserContext` across searches at `~/.cache/zerosearch/camoufox_profile`, preserving cookies and session state to avoid repeated CAPTCHAs
 3. **LRU In-Memory Cache**: Query results cached with TTL of 5 minutes. Repeated queries return instantly from memory -- no browser launch, no network round-trip
 4. **AI Content Detection**: Waits for Google AI Overview to render on page
 5. **Citation Extraction**: Injects JavaScript to extract source links from the AI response
@@ -201,7 +201,7 @@ python src/search/run.py --query "Microservices security patterns 2026 (API gate
 | `ModuleNotFoundError: No module named 'camoufox'` | Use `run.py` wrapper -- never execute scripts directly. The wrapper auto-installs dependencies. |
 | Camoufox initialization failed | Run `python -m camoufox install` manually to install the Firefox browser binary |
 | `libs/camoufox/README.md` not found | Submodule not initialized: run `git submodule update --init --recursive` |
-| Profile directory corrupted | Delete `~/.cache/google-ai-mode-skill/camoufox_profile/` and re-run -- a fresh profile will be created |
+| Profile directory corrupted | Delete `~/.cache/zerosearch/camoufox_profile/` and re-run -- a fresh profile will be created |
 | CAPTCHA every time | Profile may be corrupted or cookie jar stale. Delete profile (see above) and solve CAPTCHA once with `--show-browser` |
 | No AI overview found | Rephrase query with more specificity using the optimization template above |
 | Browser fails to start | Verify internet connection and that Camoufox browser is installed (`python -m camoufox install`) |

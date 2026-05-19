@@ -4,7 +4,7 @@ set -euo pipefail
 SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_DIR="$SKILL_DIR/.venv"
 
-echo "🔧 Google AI Mode Skill — 首次安装"
+echo "🔧 ZeroSearch — 首次安装"
 
 # Step 1: Init submodules
 if [ ! -f "$SKILL_DIR/libs/camoufox/README.md" ]; then

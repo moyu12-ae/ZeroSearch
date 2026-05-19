@@ -3,7 +3,7 @@ Profile 持久化管理器
 
 对齐 browser-engine.md §7 数据模型。
 管理 Camoufox/Firefox 浏览器 Profile 的创建、加载、损坏恢复。
-路径: ~/.cache/google-ai-mode-skill/firefox_profile/
+路径: ~/.cache/zerosearch/firefox_profile/
 """
 
 import os
@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Optional
 
 
-DEFAULT_PROFILE_DIR = Path.home() / ".cache" / "google-ai-mode-skill" / "firefox_profile"
-OLD_CHROME_PROFILE_DIR = Path.home() / ".cache" / "google-ai-mode-skill" / "chrome_profile"
+DEFAULT_PROFILE_DIR = Path.home() / ".cache" / "zerosearch" / "firefox_profile"
+OLD_CHROME_PROFILE_DIR = Path.home() / ".cache" / "zerosearch" / "chrome_profile"
 
 
 class ProfileError(Exception):
