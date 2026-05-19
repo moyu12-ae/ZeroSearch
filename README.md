@@ -192,6 +192,6 @@ MIT License — 见 [LICENSE](LICENSE) 文件
 
 ## 致谢
 
-- 基于 [zerosearch](https://github.com/moyu12-ae/ZeroSearch) 原版重构
-- 浏览器引擎: [Camoufox](https://github.com/daijro/camoufox)
-- 架构管理: [Anws](https://github.com/anthropics/anws)
+- 灵感来源: [google-ai-mode-skill](https://github.com/PleasePrompto/google-ai-mode-skill) — 原版 Google AI Mode 搜索 Skill
+- 浏览器引擎: [Camoufox](https://github.com/daijro/camoufox) — Firefox 反检测浏览器
+- 架构管理: [Anws](https://github.com/anthropics/anws) — AI IDE 工作流投影管理
