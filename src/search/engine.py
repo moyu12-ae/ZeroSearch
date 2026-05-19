@@ -7,6 +7,7 @@
 
 import time
 import sys
+import atexit
 import traceback
 from pathlib import Path
 from typing import Optional
@@ -33,6 +34,7 @@ class SearchEngine:
         self._browser = BrowserContext(headless=headless)
         self._cache = LRUCache(max_size=self.CACHE_SIZE, ttl_seconds=self.CACHE_TTL)
         self._error_handler = ErrorHandler(max_retries=3)
+        atexit.register(self.shutdown)  # 确保 Python 退出时自动关闭浏览器
 
     def search(self, query: str, save: bool = False) -> dict:
         """执行搜索

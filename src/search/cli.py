@@ -154,14 +154,17 @@ def main(argv: list[str] | None = None) -> int:
             headless=not args.show_browser,
             debug=args.debug,
         )
-        result = engine.search(query=args.query, save=args.save)
+        try:
+            result = engine.search(query=args.query, save=args.save)
 
-        if result.get("markdown"):
-            print(result["markdown"])
-        else:
-            logger.warning("搜索结果为空，请检查查询条件或网络连接。")
+            if result.get("markdown"):
+                print(result["markdown"])
+            else:
+                logger.warning("搜索结果为空，请检查查询条件或网络连接。")
 
-        return EXIT_SUCCESS
+            return EXIT_SUCCESS
+        finally:
+            engine.shutdown()  # 搜索完成后立即关闭浏览器
 
     except KeyboardInterrupt:
         logger.info("接收到用户中断信号 (SIGINT)")
