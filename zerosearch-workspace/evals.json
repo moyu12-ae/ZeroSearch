@@ -1,0 +1,23 @@
+{
+  "skill_name": "zerosearch",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我需要了解一下 React 19 的新特性，特别是 Server Components 和 Actions 的用法。帮我搜索最新的文档和示例。",
+      "expected_output": "搜索结果包含 React 19 新特性的结构化信息，带引用来源",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Compare Bun vs Node.js performance in 2026. I need real benchmark data, not speculation. Focus on cold start time, throughput, and memory usage.",
+      "expected_output": "包含具体性能对比数据的结果，附来源链接",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "What are the latest EU AI Act requirements for startups? I need to know what compliance steps we need to take before launching our SaaS product in Germany.",
+      "expected_output": "包含 EU AI Act 最新法规要点和合规步骤的结构化信息",
+      "files": []
+    }
+  ]
+}

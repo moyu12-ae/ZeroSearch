@@ -31,4 +31,4 @@ echo "🌐 安装 Camoufox 浏览器..."
 python3 -m camoufox install
 
 echo ""
-echo "✅ 安装完成！在 Claude Code 中说: 'Search Google AI Mode for: ...'"
+echo "✅ 安装完成！在 Claude Code 中说: 'Search with ZeroSearch for: ...'"
