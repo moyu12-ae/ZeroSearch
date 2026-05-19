@@ -66,9 +66,8 @@ class StealthConfig:
     """
 
     user_agent: str = (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/125.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) "
+        "Gecko/20100101 Firefox/135.0"
     )
     locale: str = "en-US"
     timezone_id: str = "America/New_York"
