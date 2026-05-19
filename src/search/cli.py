@@ -132,6 +132,9 @@ def main(argv: list[str] | None = None) -> int:
         args.show_browser,
     )
 
+    # 确保项目根在 sys.path，支持绝对导入
+    _setup_import_path()
+
     # ── 尝试导入并调用 SearchEngine ─────────────────────────────────
     try:
         from src.search.engine import SearchEngine

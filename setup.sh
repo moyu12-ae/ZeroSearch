@@ -28,7 +28,7 @@ pip install -r "$SKILL_DIR/requirements.txt" -q
 
 # Step 4: Install Playwright browsers (Camoufox needs Firefox)
 echo "🌐 安装 Camoufox 浏览器..."
-python3 -m camoufox install
+python3 -m camoufox fetch
 
 echo ""
 echo "✅ 安装完成！在 Claude Code 中说: 'Search with ZeroSearch for: ...'"
