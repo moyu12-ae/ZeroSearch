@@ -211,38 +211,37 @@ def extract_citations(page) -> list[dict]:
                 continue
 
             for el in elements:
-            title = ""
-            url = ""
+                title = ""
+                url = ""
 
-            try:
-                # extract title
-                title = (el.text_content() or "").strip()
-
-                # extract url
-                raw_href = el.get_attribute("href")
-                if raw_href:
-                    url = raw_href.strip()
-            except Exception:
-                # 单个元素提取失败，跳过该元素
-                continue
-
-            # 保守：没有 url 的条目跳过
-            if not url:
-                continue
-
-            # Camoufox 可能返回相对路径；额外兜底
-            # （Google 搜索结果通常返回绝对 URL，但泛用选择器可能抓到相对路径）
-            if url.startswith("/") and not url.startswith("//"):
                 try:
-                    url = page.url.rstrip("/") + url
+                    # extract title
+                    title = (el.text_content() or "").strip()
+
+                    # extract url
+                    raw_href = el.get_attribute("href")
+                    if raw_href:
+                        url = raw_href.strip()
                 except Exception:
-                    pass
+                    # 单个元素提取失败，跳过该元素
+                    continue
 
-            raw_entries.append({"title": title, "url": url})
+                # 保守：没有 url 的条目跳过
+                if not url:
+                    continue
 
-        # 早停：高优先级选择器命中且有数据就直接返回
-        if raw_entries:
-            break
+                # Camoufox 可能返回相对路径；额外兜底
+                if url.startswith("/") and not url.startswith("//"):
+                    try:
+                        url = page.url.rstrip("/") + url
+                    except Exception:
+                        pass
+
+                raw_entries.append({"title": title, "url": url})
+
+            # 早停：高优先级选择器命中且有数据就直接返回
+            if raw_entries:
+                break
 
     # 去重
     unique = _deduplicate_citations(raw_entries)
