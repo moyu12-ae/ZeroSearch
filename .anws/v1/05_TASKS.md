@@ -130,7 +130,7 @@ graph TD
 
 ### Phase 1: Foundation — 启动与配置
 
-- [ ] **T2.1.1** [REQ-001]: 实现 BrowserFactory 启动 Camoufox
+- [x] **T2.1.1** [REQ-001]: 实现 BrowserFactory 启动 Camoufox
   - **描述**: 用 Camoufox 的 launch_persistent_context 替代原 Patchright 启动逻辑，成功启动 Firefox 并导航到 google.com
   - **输入**:
     - 04_SYSTEM_DESIGN/browser-engine.md §4 组件架构、§6 接口设计
@@ -148,7 +148,7 @@ graph TD
 
 ### Phase 2: Core — Profile 与反检测
 
-- [ ] **T2.2.1** [REQ-007]: 实现 Profile 持久化
+- [x] **T2.2.1** [REQ-007]: 实现 Profile 持久化
   - **描述**: Profile 目录管理（创建/加载/损坏恢复），路径 `~/.cache/google-ai-mode-skill/firefox_profile/`，兼容旧 Chrome Profile 路径提示
   - **输入**:
     - 04_SYSTEM_DESIGN/browser-engine.md §7 数据模型、§14 错误处理矩阵
@@ -165,7 +165,7 @@ graph TD
   - **依赖**: T2.1.1
   - **优先级**: P1
 
-- [ ] **T2.2.2** [REQ-001]: 实现反检测配置
+- [x] **T2.2.2** [REQ-001]: 实现反检测配置
   - **描述**: 配置 11 项反检测项（UA 伪装、locale="en-US"、extra_http_headers、disable-automation flags），5 项显式配置 + 6 项 Camoufox 内置
   - **输入**:
     - 04_SYSTEM_DESIGN/browser-engine.md §8 反检测配置详解
