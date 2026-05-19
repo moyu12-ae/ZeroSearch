@@ -364,7 +364,7 @@ graph TD
 
 ### Phase 2: Core — 编排与缓存
 
-- [ ] **T5.2.1** [REQ-005]: 实现搜索编排主逻辑
+- [x] **T5.2.1** [REQ-005]: 实现搜索编排主逻辑
   - **描述**: 编排 BrowserEngine → ContentExtractor → MarkdownConverter 全流程，含性能计时
   - **输入**:
     - 04_SYSTEM_DESIGN/search-engine.md §4 泳道图、§8 性能设计（预算分解）
@@ -380,7 +380,7 @@ graph TD
   - **依赖**: T2.3.1, T3.1.4, T4.1.1, T4.1.2, T5.1.1
   - **优先级**: P0
 
-- [ ] **T5.2.2** [REQ-003]: 实现 LRU + TTL 缓存
+- [x] **T5.2.2** [REQ-003]: 实现 LRU + TTL 缓存
   - **描述**: OrderedDict 实现 LRU 缓存，max 50 条，TTL 5 分钟，查询 hash 作为 key
   - **输入**:
     - 04_SYSTEM_DESIGN/search-engine.md §6 数据模型（CacheEntry）、§8 Trade-off
@@ -396,7 +396,7 @@ graph TD
   - **依赖**: T5.2.1
   - **优先级**: P1
 
-- [ ] **T5.2.3** [REQ-004]: 实现分级错误降级
+- [x] **T5.2.3** [REQ-004]: 实现分级错误降级
   - **描述**: CAPTCHA 检测 → 退出码2 + 提示; 超时 → 自动重试1次; AI Mode 不可用 → 普通搜索降级; 连续3次失败 → 放弃
   - **输入**:
     - 04_SYSTEM_DESIGN/search-engine.md §7 错误处理（决策树）
