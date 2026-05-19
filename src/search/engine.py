@@ -112,12 +112,19 @@ class SearchEngine:
         if captcha_msg:
             if not self._headless:
                 # --show-browser 模式：等待用户手动解决 CAPTCHA
-                print("⚠️  检测到 CAPTCHA，请在浏览器窗口中手动完成验证。", file=sys.stderr)
-                print("   完成后按 Enter 继续搜索...", file=sys.stderr)
+                print(
+                    "⚠️  检测到 CAPTCHA，请在浏览器窗口中手动完成验证。",
+                    file=sys.stderr,
+                )
+                print(
+                    "   验证完成后回到终端按 Ctrl+C 继续搜索...",
+                    file=sys.stderr,
+                )
+                import time as _time
                 try:
-                    input()
-                except EOFError:
-                    pass
+                    _time.sleep(600)  # 最多等 10 分钟
+                except KeyboardInterrupt:
+                    print("\n   继续搜索...", file=sys.stderr)
                 # 重新导航到 Google AI Mode（CAPTCHA 已解决）
                 page.goto(google_url, wait_until="domcontentloaded", timeout=15000)
                 self._log("CAPTCHA 验证后重新导航完成")
