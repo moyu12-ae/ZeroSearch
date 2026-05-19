@@ -130,8 +130,10 @@ class ErrorHandler:
         """检测页面是否为 Google CAPTCHA/人机验证页面。
 
         检测逻辑:
-        1. 检查当前 URL 是否包含 /sorry/index (Google 的 CAPTCHA 路径)
-        2. 检查页面文本内容是否包含 "captcha" 关键字 (不区分大小写)
+        1. 等待 1.5 秒让 reCAPTCHA iframe 渲染
+        2. 检查当前 URL 是否包含 /sorry/index
+        3. 检查页面文本是否包含 CAPTCHA 关键字
+        4. 检查页面标题是否包含 "sorry"
 
         Args:
             page: Camoufox/Playwright Page 对象
@@ -139,6 +141,12 @@ class ErrorHandler:
         Returns:
             空字符串表示无 CAPTCHA；非空字符串为 CAPTCHA 错误消息
         """
+        # 等待 CAPTCHA 页面完全渲染
+        try:
+            page.wait_for_timeout(1500)
+        except Exception:
+            pass
+
         is_captcha = False
         reason = ""
 
@@ -151,13 +159,31 @@ class ErrorHandler:
         except Exception:
             pass
 
-        # 2) 通过页面文本内容检测
+        # 2) 通过页面标题检测
         if not is_captcha:
             try:
-                body_text = page.inner_text("body") or ""
-                if "captcha" in body_text.lower():
+                title = (page.title() or "").lower()
+                if "sorry" in title:
                     is_captcha = True
-                    reason = "页面文本包含 'captcha'"
+                    reason = "页面标题包含 'sorry'"
+            except Exception:
+                pass
+
+        # 3) 通过页面文本内容检测
+        if not is_captcha:
+            try:
+                body_text = (page.inner_text("body") or "").lower()
+                captcha_keywords = [
+                    "captcha",
+                    "unusual traffic",
+                    "automated requests",
+                    "not a robot",
+                ]
+                for kw in captcha_keywords:
+                    if kw in body_text:
+                        is_captcha = True
+                        reason = f"页面文本包含 '{kw}'"
+                        break
             except Exception:
                 pass
 
