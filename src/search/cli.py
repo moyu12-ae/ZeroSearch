@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from pathlib import Path
 
 # ── 退出码常量 (对齐 search-engine.md §5.2) ──────────────────────────
 EXIT_SUCCESS = 0
@@ -91,6 +92,19 @@ def configure_logging(debug: bool) -> None:
             datefmt = ""
         handler.setFormatter(logging.Formatter(fmt, datefmt=datefmt))
         logger.addHandler(handler)
+
+
+def _setup_import_path() -> None:
+    """确保项目根目录在 sys.path 中，支持绝对导入。
+
+    cli.py 可能通过 run.py 子进程或直接执行调用。
+    子进程中 sys.path[0] 是 cli.py 所在目录 (src/search/)，
+    需要将项目根加入 path 以支持 `from src.search.engine import ...`。
+    """
+    cli_dir = Path(__file__).resolve().parent  # src/search/
+    project_root = cli_dir.parent.parent       # 项目根
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
 
 
 def main(argv: list[str] | None = None) -> int:

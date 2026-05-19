@@ -211,7 +211,7 @@ class ErrorHandler:
         try:
             # 构建 Google 搜索 URL 并重新导航
             from urllib.parse import quote_plus
-            search_url = f"https://www.google.com/search?q={quote_plus(query)}&udm=14"
+            search_url = f"https://www.google.com/search?q={quote_plus(query)}&udm=50"
             page.goto(search_url, timeout=TIMEOUT_SECONDS * 1000)
             return True
         except Exception:

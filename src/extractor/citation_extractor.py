@@ -203,14 +203,14 @@ def extract_citations(page) -> list[dict]:
         for sel_def in SELECTORS:
             try:
                 elements = page.query_selector_all(sel_def.selector)
-        except Exception:
-            # 选择器语法不兼容或页面不可用时跳过，不阻断后续回退
-            continue
+            except Exception:
+                # 选择器语法不兼容或页面不可用时跳过，不阻断后续回退
+                continue
 
-        if not elements:
-            continue
+            if not elements:
+                continue
 
-        for el in elements:
+            for el in elements:
             title = ""
             url = ""
 

@@ -153,17 +153,17 @@ def detect_ai_completion(page, timeout_ms: int = 8000) -> tuple[str, bool]:
 
             if _check_stage(page, stage_cfg):
                 if stage_num == 3:
-                    # 阶段 3 额外要求：文本长度 > 200 且 1s 内稳定
-                    stability_ms = stage_cfg.get("stability_ms", 1000)
+                    # 阶段 3 额外要求：文本长度 > 200 且 stability_ms 内内容不变
+                    stability_ms = stage_cfg.get("stability_ms", 300)
                     stable_text = _get_page_text(page)
                     if stable_text and len(stable_text) > stage_cfg.get("threshold_chars", 200):
-                        # 等待 stability_ms 后确认文本不再变化
+                        # 等待 stability_ms 后确认文本内容不再变化
                         time.sleep(stability_ms / 1000.0)
-                        if _check_stage(page, stage_cfg):
-                            confirm_text = _get_page_text(page)
-                            if confirm_text and len(confirm_text) > stage_cfg.get("threshold_chars", 200):
-                                return (confirm_text, True)
-                    # 文本不够长或稳定性未通过，继续轮询
+                        confirm_text = _get_page_text(page)
+                        # 验证文本内容是否稳定（内容相等，而非仅长度足够）
+                        if confirm_text == stable_text:
+                            return (confirm_text, True)
+                    # 文本不够长或内容仍在变化，继续轮询
                 elif stage_num == 4:
                     # 阶段 4：无条件提取文本并返回
                     text = _get_page_text(page)

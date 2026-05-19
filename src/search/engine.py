@@ -79,7 +79,7 @@ class SearchEngine:
                 "markdown": result["markdown"],
                 "citations": result.get("citations", []),
                 "query": query,
-                "timestamp": time.time(),
+                "timestamp": time.monotonic(),
             })
 
         # ── Step 4: 保存文件 ──────────────────────────
