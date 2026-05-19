@@ -76,7 +76,7 @@ Camoufox Firefox (v135+) → Google AI Mode (udm=50) → AI 内容提取 → Mar
 
 | 系统 | 职责 | 性能预算 |
 |------|------|:--:|
-| **BrowserEngine** | Camoufox 生命周期、Profile 持久化、反检测配置 | <2.5s 冷启动 |
+| **BrowserEngine** | Camoufox 生命周期、Profile 持久化、反检测配置、自动关闭 | <4s 冷启动 |
 | **SearchEngine** | 全流程编排、LRU 缓存、分级错误降级、CLI 入口 | 编排层 |
 | **ContentExtractor** | AI 完成检测(4阶段)、17选择器引用提取、DOM清洗 | <300ms |
 | **MarkdownConverter** | HTML→Markdown 三库Fallback、[1][2]脚注、文件保存 | <200ms |
@@ -85,7 +85,7 @@ Camoufox Firefox (v135+) → Google AI Mode (udm=50) → AI 内容提取 → Mar
 
 - **Camoufox 替代 Patchright**: 原生 Firefox 反指纹，CAPTCHA 率 < 5%，内存占用低 30%
 - **Git Submodule 管理**: `git submodule update --remote` 一键同步 Camoufox 上游
-- **预热常驻**: 浏览器实例保活，二次搜索免冷启动
+- **按需生命周期**: 每次搜索冷启动浏览器，搜索完成后自动关闭，不残留进程
 - **LRU 缓存**: 50 条，TTL 5 分钟，命中 < 0.1ms 返回
 - **分级降级**: CAPTCHA / 超时 / AI不可用各有处理策略
 
@@ -123,11 +123,11 @@ zerosearch/
 
 | 指标 | 目标 | 实测 |
 |------|:--:|:--:|
-| 端到端搜索 (P95) | ≤ 3s | ~10s (首次)，~5s (预热后) |
+| 端到端搜索 (P95) | ≤ 8s (冷启动) | ~10s (首次)，~5s (后续) |
 | 缓存命中 | < 100ms | < 0.001ms |
 | CAPTCHA 触发率 | < 5% | 待长期统计 |
 
-> 端到端延迟受 Google AI 内容生成速度影响。首次搜索含 Firefox 冷启动。
+> 端到端延迟受 Google AI 内容生成速度影响。每次搜索均为冷启动，浏览器启动后用完即关。
 
 ---
 

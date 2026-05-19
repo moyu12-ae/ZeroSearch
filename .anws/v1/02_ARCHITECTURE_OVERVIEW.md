@@ -14,7 +14,7 @@
 graph TD
     CC[Claude Code] -->|触发 Skill| SESearchEngine
     
-    SESearchEngine -->|启动/复用/导航| CFF[Camoufox Firefox]
+    SESearchEngine -->|启动/导航/关闭| CFF[Camoufox Firefox]
     SESearchEngine -->|提取内容| CE[ContentExtractor]
     SESearchEngine -->|缓存查询| CM[CacheManager]
     
@@ -51,7 +51,7 @@ graph TD
 **系统ID**: `browser-engine`
 
 **职责 (Responsibility)**:
-- Camoufox/Firefox 实例生命周期管理（启动、预热常驻、关闭）
+- Camoufox/Firefox 实例生命周期管理（启动、按需使用、自动关闭）
 - 浏览器 Profile 持久化（cookies、session、偏好设置）
 - 反检测配置（UA、指纹、语言区域）
 - 页面导航与等待
@@ -61,7 +61,7 @@ graph TD
 - **输出**: 已加载 Google AI Mode 页面的 Page 对象
 - **依赖**: Camoufox (外部, Git Submodule)
 
-**关联需求**: [REQ-001] 引擎替换, [REQ-002] 预热常驻, [REQ-007] 登录持久化
+**关联需求**: [REQ-001] 引擎替换, [REQ-002] 按需生命周期, [REQ-007] 登录持久化
 
 **技术栈**:
 - Camoufox (Firefox 133+)
@@ -226,7 +226,7 @@ google-ai-mode-skill/              # 仓库根 = Skill 部署位置
 ├── src/                           # 项目源码 (从原 google-ai-mode 复制演进)
 │   ├── browser/                   # System 1: BrowserEngine
 │   │   ├── __init__.py
-│   │   ├── browser_factory.py     # Camoufox 启动/配置/预热
+│   │   ├── browser_factory.py     # Camoufox 启动/配置/关闭
 │   │   ├── profile_manager.py     # Profile 持久化
 │   │   └── stealth.py             # 反检测配置
 │   │

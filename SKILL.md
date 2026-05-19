@@ -44,7 +44,7 @@ This project's Python pipeline uses Camoufox (Firefox v135+ with anti-fingerprin
 python src/search/run.py --query "your optimized query" --save --debug
 ```
 
-**Requirements**: Camoufox submodule initialized, Google AI Mode accessible from your region.
+**Requirements**: Camoufox submodule initialized, Google AI Mode accessible from your region. The browser starts on each search and automatically closes when done -- no residual processes.
 
 ### Decision Flow
 
@@ -136,11 +136,11 @@ git submodule update --init --recursive
 
 ## CAPTCHA Handling
 
-Camoufox's anti-fingerprinting + persistent browser context minimizes CAPTCHAs. If triggered:
+Camoufox's anti-fingerprinting + persistent browser Profile minimizes CAPTCHAs. If triggered:
 
 - **Headless mode**: Script returns exit code 2 with CAPTCHA_REQUIRED message
 - **Manual solve**: Re-run with `--show-browser`, solve CAPTCHA in the browser window
-- **After first solve**: Persistent context preserves session, future searches skip CAPTCHA
+- **After first solve**: Persistent Profile preserves session, future searches skip CAPTCHA
 - **If persistent**: Delete `~/.cache/zerosearch/firefox_profile/` to reset
 
 ## Output Format

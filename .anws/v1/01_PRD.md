@@ -9,7 +9,7 @@
 
 ## 1. 执行摘要 (Executive Summary)
 
-将 google-ai-mode-skill 的浏览器引擎从 Patchright (Chromium) 迁移到 Camoufox (Firefox 反检测)，实现全链路 ≤3 秒搜索性能。
+将 google-ai-mode-skill 的浏览器引擎从 Patchright (Chromium) 迁移到 Camoufox (Firefox 反检测)，实现冷启动全链路 ≤8 秒搜索性能。
 
 ---
 
@@ -24,12 +24,12 @@
 - Camoufox 原生反指纹能力 → CAPTCHA 率进一步降低
 - Firefox 引擎比 Chrome 轻量 → 内存/CPU 占用更低
 - Git Submodule 管理 → Camoufox 上游更新一键同步
-- 全链路优化 → 用户体验从 5-7s 降到 ≤3s
+- 全链路优化 → 冷启动搜索体验 ≤ 8s
 
 ### 2.3 竞品与参考 (Reference & Competitors)
 - **原项目 (PleasePrompto/google-ai-mode-skill)**: Patchright + Chrome，成熟但慢
 - **Camoufox (daijro/camoufox)**: Firefox 反检测浏览器，API 接近 Playwright，学习成本低
-- **我们的护城河**: Camoufox 反指纹 + 预热常驻 + LRU 缓存 = 更快更稳更低调
+- **我们的护城河**: Camoufox 反指纹 + 按需生命周期 + LRU 缓存 = 更稳更低调
 
 ---
 
@@ -37,9 +37,9 @@
 
 ### 3.1 目标 (Goals)
 
-- **[G1]**: 全链路搜索端到端延迟 ≤ 3 秒 (P95，含浏览器导航→AI 等待→提取→转换)
+- **[G1]**: 全链路搜索端到端延迟 ≤ 8 秒 (P95，冷启动，含浏览器启动→导航→AI 等待→提取→转换)
 - **[G2]**: Camoufox 通过 Git Submodule 管理，`git submodule update` 即可同步上游
-- **[G3]**: 浏览器实例预热常驻，首搜免冷启动
+- **[G3]**: 浏览器搜索完成后自动关闭，不残留进程
 - **[G4]**: 内存 LRU 缓存，相同查询 TTL 内命中直接返回（< 0.1s）
 - **[G5]**: 分级错误降级：CAPTCHA / 网络超时 / AI Mode 不可用各有对应策略
 
@@ -50,6 +50,7 @@
 - **[NG3]**: 不改造 Google AI Mode 的搜索结果内容（Google 的 AI 回答内容不由我们控制）
 - **[NG4]**: 不做并发多查询（单次搜索单查询）
 - **[NG5]**: 不做用户登录态云端同步（仅本地持久化）
+- **[NG6]**: 不做跨进程浏览器复用（daemon 模式）
 
 ---
 
@@ -70,20 +71,20 @@
     *   macOS / Linux 下 Firefox 路径差异
     *   Camoufox 上游 breaking change 兼容性
 
-### US-002: 浏览器预热常驻 [REQ-002] (优先级: P0)
+### US-002: 浏览器按需生命周期 [REQ-002] (优先级: P0)
 
-*   **故事描述**: 作为 Claude Code 用户，当我首次触发搜索后，浏览器实例保持 alive，后续搜索无需等待冷启动。
-*   **用户价值**: 第二次及以后的搜索免去 1-2s 浏览器启动时间。
-*   **独立可测性**: 第一次搜索后检查进程列表中是否存在 Firefox 实例；第二次搜索观察是否复用同一实例。
+*   **故事描述**: 作为 Claude Code 用户，每次搜索时浏览器自动启动，搜索完成后自动关闭，不残留进程，确保每次搜索都是干净独立的环境。
+*   **用户价值**: 每次搜索后自动释放资源，无内存泄漏风险，无需手动清理进程。
+*   **独立可测性**: 搜索完成后检查进程列表中不存在 Firefox 实例；连续多次搜索观察每次都是新进程。
 *   **涉及系统**: BrowserEngine
 *   **验收标准 (Acceptance Criteria)**:
-    *   [ ] **Given** 首次搜索已完成, **When** 发起第二次搜索, **Then** 复用已有浏览器 context（不重新启动进程），页面导航时间 < 500ms。
-    *   [ ] **Given** 浏览器闲置超过 5 分钟, **When** 下次搜索时, **Then** 自动检测 context 状态，若已失效则重新启动。
-    *   [ ] **异常处理**: 当浏览器进程意外崩溃时，系统必须自动重新启动，用户无感知。
+    *   [ ] **Given** 搜索触发, **When** 系统启动浏览器, **Then** 每次搜索启动全新浏览器实例，搜索完成后通过 atexit + finally 自动关闭。
+    *   [ ] **Given** 搜索已完成, **When** 检查系统进程, **Then** 无残留 Firefox/geckodriver 进程。
+    *   [ ] **异常处理**: 当浏览器进程意外崩溃时，atexit 兜底确保清理残留进程，不影响下次搜索。
 *   **边界与极限情况**:
-    *   浏览器进程被用户手动 kill
-    *   系统休眠/唤醒后 context 状态
-    *   内存压力下 OS kill 浏览器进程
+    *   搜索过程中用户 Ctrl+C 中断 → atexit 确保关闭
+    *   Python 进程被 SIGKILL → 下次搜索前检查并清理残留进程
+    *   内存压力下 OS kill 浏览器进程 → finally 块清理
 
 ### US-003: 内存 LRU 缓存 [REQ-003] (优先级: P1)
 
@@ -119,13 +120,13 @@
 
 ### US-005: 全链路性能达标 [REQ-005] (优先级: P0)
 
-*   **故事描述**: 作为 Claude Code 用户，一次完整搜索（从触发到拿到 Markdown 结果）P95 不超过 3 秒。
-*   **用户价值**: 等待时间减半，工作效率提升。
-*   **独立可测性**: 运行 10 次不同查询，统计 P95 端到端延迟，验证 ≤ 3s。
+*   **故事描述**: 作为 Claude Code 用户，一次完整搜索（从触发到拿到 Markdown 结果）P95 不超过 8 秒。
+*   **用户价值**: 可靠、一致的搜索体验。
+*   **独立可测性**: 运行 10 次不同查询，统计 P95 端到端延迟，验证 ≤ 8s。
 *   **涉及系统**: 全部（BrowserEngine → SearchEngine → ContentExtractor → MarkdownConverter）
 *   **验收标准 (Acceptance Criteria)**:
-    *   [ ] **Given** 浏览器已预热, **When** 执行 10 次不同查询, **Then** P95 端到端延迟 ≤ 3000ms。
-    *   [ ] **Given** 首次搜索（含冷启动）, **When** 执行搜索, **Then** 端到端延迟 ≤ 8000ms（含 Firefox 冷启动）。
+    *   [ ] **Given** 每次搜索均为冷启动, **When** 执行 10 次不同查询, **Then** P95 端到端延迟 ≤ 8000ms。
+    *   [ ] **Given** 任意搜索, **When** 搜索完成, **Then** 浏览器进程已自动关闭，无残留。
     *   [ ] **异常处理**: 当任一环节超过其分配的时间预算时，记录性能日志但不中断搜索。
 *   **边界与极限情况**:
     *   网络波动导致页面加载变慢
@@ -170,11 +171,8 @@
 
 ```mermaid
 flowchart TD
-    A[Claude Code 触发搜索] --> B{浏览器已预热?}
-    B -->|是| D[复用 Browser Context]
-    B -->|否| C[启动 Camoufox Firefox]
-    C --> D
-    D --> E{缓存命中?}
+    A[Claude Code 触发搜索] --> C[启动 Camoufox Firefox]
+    C --> E{缓存命中?}
     E -->|是| F[返回缓存结果 < 0.1s]
     E -->|否| G[导航 Google AI Mode]
     G --> H{AI 回答渲染完成?}
@@ -201,7 +199,7 @@ flowchart TD
 
 ### 6.1 技术约束 (Technical Constraints)
 *   **浏览器引擎**: Camoufox (Firefox 133+) 仅支持，不再兼容 Patchright/Chrome
-*   **性能底线**: 端到端 P95 ≤ 3s（预热后），首次冷启动 ≤ 8s
+*   **性能底线**: 每次搜索均为冷启动，端到端 ≤ 8s
 *   **扩展性预期**: 单用户单查询，不做并发设计
 *   **Python 版本**: ≥ 3.8（与原项目一致）
 *   **部署位置**: `~/.claude/skills/google-ai-mode/`（仓库即 Skill）
@@ -221,7 +219,7 @@ flowchart TD
 
 | 核心指标 (Metric) | 目标值 (Target) | 测量方式 (Measurement Method) |
 | ----------------- | --------------- | ----------------------------- |
-| 端到端搜索延迟 (P95) | ≤ 3000ms | `--debug` 日志中的计时 |
+| 端到端搜索延迟 (P95) | ≤ 8000ms (冷启动) | `--debug` 日志中的计时 |
 | 缓存命中率 (5min窗口) | > 30% | CacheManager stats |
 | CAPTCHA 触发率 | < 5% | 搜索日志统计 |
 | 错误恢复成功率 | > 80% | 分级降级后的成功/失败比 |
@@ -232,7 +230,7 @@ flowchart TD
 
 *   [ ] 所有 7 条 User Story 的验收标准全部测试通过
 *   [ ] Camoufox Submodule 在 `libs/camoufox/` 可正常 import
-*   [ ] 10 次搜索 P95 ≤ 3s（预热后）
+*   [ ] 10 次搜索 P95 ≤ 8s（冷启动）
 *   [ ] LRU 缓存命中返回 < 100ms
 *   [ ] CAPTCHA / 超时 / AI Mode 不可用三种错误场景均有正确响应
 *   [ ] SKILL.md 更新为 Camoufox 版本的说明
