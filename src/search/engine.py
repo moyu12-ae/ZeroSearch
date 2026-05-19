@@ -110,7 +110,19 @@ class SearchEngine:
         # CAPTCHA check
         captcha_msg = self._error_handler.handle_captcha(page)
         if captcha_msg:
-            return {"markdown": captcha_msg, "citations": []}
+            if not self._headless:
+                # --show-browser 模式：等待用户手动解决 CAPTCHA
+                print("⚠️  检测到 CAPTCHA，请在浏览器窗口中手动完成验证。", file=sys.stderr)
+                print("   完成后按 Enter 继续搜索...", file=sys.stderr)
+                try:
+                    input()
+                except EOFError:
+                    pass
+                # 重新导航到 Google AI Mode（CAPTCHA 已解决）
+                page.goto(google_url, wait_until="domcontentloaded", timeout=15000)
+                self._log("CAPTCHA 验证后重新导航完成")
+            else:
+                return {"markdown": captcha_msg, "citations": []}
 
         # AI wait + extract
         t_ai = time.perf_counter()
