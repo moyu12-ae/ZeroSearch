@@ -83,29 +83,8 @@ class BrowserContext:
         """导航到目标 URL"""
         self._factory.navigate(url)
 
-    def wait_for_ai(self, timeout_ms: int = 15000) -> bool:
-        """等待 Google AI Mode 回答渲染完成（委托给 ContentExtractor）
-
-        Returns:
-            True 如果 AI 完成，False 如果超时
-        """
-        self._last_used = time.time()
-        # 基础的 AI 完成检测 —— 等待 feedback button
-        ctx = self.get_context()
-        page = ctx.pages[0] if ctx.pages else ctx.new_page()
-
-        selectors = [
-            '[aria-label*="feedback" i]',
-            '[aria-label*="Bewertung"]',
-            '[aria-label*="beoordeling"]',
-        ]
-        for sel in selectors:
-            try:
-                page.wait_for_selector(sel, timeout=timeout_ms)
-                return True
-            except Exception:
-                continue
-        return False
+    # wait_for_ai() removed — unified in src/extractor/ai_detector.py
+    # See CH-04 in .anws/v1/07_CHALLENGE_REPORT.md
 
     def shutdown(self) -> None:
         """优雅关闭浏览器，释放资源"""

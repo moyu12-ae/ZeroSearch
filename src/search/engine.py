@@ -7,6 +7,7 @@
 
 import time
 import sys
+import traceback
 from pathlib import Path
 from typing import Optional
 
@@ -64,7 +65,7 @@ class SearchEngine:
             self._browser.shutdown()
             sys.exit(130)
         except Exception as e:
-            self._log(f"搜索异常: {e}")
+            self._log(f"搜索异常: {e}\n{traceback.format_exc()}")
             result = {
                 "markdown": f"搜索失败: {e}",
                 "citations": [],

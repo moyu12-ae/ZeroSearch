@@ -5,6 +5,8 @@ BrowserFactory — Camoufox 浏览器实例工厂
 接口对齐 browser-engine.md §6.1 操作契约。
 """
 
+import os
+from contextlib import redirect_stderr
 from pathlib import Path
 from typing import Optional
 
@@ -70,13 +72,14 @@ class BrowserFactory:
             profile_path = self._profile.ensure_profile()
 
             self._playwright = sync_playwright().start()
-            self._context = NewBrowser(
-                self._playwright,
-                headless=self._headless,
-                persistent_context=True,
-                user_data_dir=str(profile_path),
-                **self._stealth.to_context_kwargs(),
-            )
+            with open(os.devnull, 'w') as devnull, redirect_stderr(devnull):
+                self._context = NewBrowser(
+                    self._playwright,
+                    headless=self._headless,
+                    persistent_context=True,
+                    user_data_dir=str(profile_path),
+                    **self._stealth.to_context_kwargs(),
+                )
             return self._context
         except Exception as e:
             raise BrowserLaunchError(

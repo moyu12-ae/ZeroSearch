@@ -27,7 +27,7 @@ COMPLETION_STAGES: List[Dict[str, Any]] = [
         "stage": 1,
         "strategy": "SVG thumbs-up detection",
         "selector": 'svg[aria-label*="thumbs-up"], [aria-label*="Thumbs up"]',
-        "timeout_ms": 3000,
+        "timeout_ms": 1000,
         "fallback": "stage_2",
         "js_inject": """
             () => document.querySelector('svg[aria-label*="thumbs-up"]') !== null ||
@@ -41,7 +41,7 @@ COMPLETION_STAGES: List[Dict[str, Any]] = [
             '[aria-label*="feedback"], [aria-label*="Feedback"], '
             '[aria-label*="Bewertung"], [aria-label*="beoordeling"]'
         ),
-        "timeout_ms": 3000,
+        "timeout_ms": 1000,
         "fallback": "stage_3",
         "js_inject": """
             () => {
@@ -54,8 +54,8 @@ COMPLETION_STAGES: List[Dict[str, Any]] = [
         "stage": 3,
         "strategy": "text content length check",
         "threshold_chars": 200,
-        "stability_ms": 1000,
-        "timeout_ms": 5000,
+        "stability_ms": 300,
+        "timeout_ms": 2000,
         "fallback": "stage_4",
         "js_inject": """
             () => {
@@ -69,7 +69,7 @@ COMPLETION_STAGES: List[Dict[str, Any]] = [
     {
         "stage": 4,
         "strategy": "hard timeout fallback",
-        "timeout_ms": 4000,
+        "timeout_ms": 2000,
         "fallback": None,
         "js_inject": "() => true",
     },
@@ -116,7 +116,7 @@ def _check_stage(page, stage_config: Dict[str, Any]) -> bool:
 # Public API
 # ---------------------------------------------------------------------------
 
-def detect_ai_completion(page, timeout_ms: int = 15000) -> tuple[str, bool]:
+def detect_ai_completion(page, timeout_ms: int = 8000) -> tuple[str, bool]:
     """4 阶段检测 AI 回答是否渲染完成。
 
     按顺序执行 COMPLETION_STAGES 中的 4 个阶段，每阶段有其独立

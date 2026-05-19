@@ -158,27 +158,51 @@ def _deduplicate_citations(raw_items: List[Dict[str, str]]) -> List[Citation]:
 
 
 def extract_citations(page) -> list[dict]:
-    """17 选择器回退链提取引用链接。
+    """提取引用链接：优先使用 JS 注入（动态 DOM），回退到 CSS 选择器。
 
-    按优先级尝试 17 个选择器，命中后从匹配的元素中提取
-    title 和 url，再进行域名 + 标题相似度去重。
+    策略:
+    1. JS 注入: 直接在浏览器中遍历 <a> 标签提取 title + href
+    2. CSS 回退: 17 选择器回退链（兼容旧版 Google AI Mode DOM）
 
     Parameters
     ----------
     page : Camoufox Page 对象
-        已加载完 Google AI Search 结果页的 Page 实例。
 
     Returns
     -------
     list[dict]
-        去重后的引用列表，每项为 {title: str, url: str}。
-        全部选择器未命中时返回空列表（不抛异常）。
+        去重后的引用列表 [{title, url}]，未命中时返回空列表。
     """
     raw_entries: List[Dict[str, str]] = []
 
-    for sel_def in SELECTORS:
-        try:
-            elements = page.query_selector_all(sel_def.selector)
+    # ── 主策略: JS 注入提取（适配当前 Google DOM） ──────────
+    try:
+        js_result = page.evaluate("""
+            () => {
+                const results = [];
+                const links = document.querySelectorAll('a[href]');
+                for (const a of links) {
+                    const href = a.href || '';
+                    if (!href.startsWith('http')) continue;
+                    if (href.includes('google.com')) continue;
+                    const text = (a.innerText || a.textContent || '').trim();
+                    if (text.length > 0) {
+                        results.push({title: text, url: href});
+                    }
+                }
+                return results;
+            }
+        """)
+        if js_result and isinstance(js_result, list):
+            raw_entries.extend(js_result)
+    except Exception:
+        pass
+
+    # ── 回退策略: CSS 选择器链 ──────────────────────────────
+    if not raw_entries:
+        for sel_def in SELECTORS:
+            try:
+                elements = page.query_selector_all(sel_def.selector)
         except Exception:
             # 选择器语法不兼容或页面不可用时跳过，不阻断后续回退
             continue
