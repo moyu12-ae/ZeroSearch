@@ -73,57 +73,68 @@
 
 ## 📍 当前状态 (由 Workflow 自动更新)
 
-> **注意**: 这是项目文件中的保留部分，由 `/genesis`、`/blueprint` 和 `/forge` 自动维护。
+- **最新架构版本**: `.anws/v1`
+- **活动任务清单**: [05_TASKS.md](.anws/v1/05_TASKS.md) ✅ 23 任务, 4 Sprints
+- **待办任务数**: 23
+- **最近一次更新**: `2026-05-19`
 
-- **最新架构版本**: `.anws/v{N}`
-- **活动任务清单**: `尚未生成` (等待 /blueprint)
-- **待办任务数**: -
-- **最近一次更新**: `[由 Workflow 自动填充]`
-
-### 🌊 Wave 1 — 待 /blueprint 或 /forge 设置
-_由 `/blueprint` 或 `/forge` 自动填充_
+### 🌊 Wave 6 ✅ — 收尾验证 + 文档 (SKILL.md + 集成测试 + 性能)
+T5.3.1, INT-S1, INT-S2, INT-S3, T6.2.1, T6.2.2, T6.2.3
 
 ---
 
 ## 🌳 项目结构 (Project Tree)
 
-> **注意**: 此部分由 `/genesis` 维护。
-
 ```text
-src/
-└── anws/
-    ├── bin/cli.js
-    ├── lib/ (init, update, diff, changelog, copy, manifest, ...)
-    └── templates/
-        ├── .agents/   (内部 canonical 模板源，经 projection 投放到各 target)
-        └── AGENTS.md
-
-.anws/
-├── changelog/         (升级记录)
-└── v{N}/              (当前架构文档)
+google-ai-mode-skill/              # 仓库根 = Skill 部署位置
+├── SKILL.md                       # Claude Code Skill 定义
+├── README.md
+├── requirements.txt
+├── libs/
+│   └── camoufox/                  # Camoufox (Git Submodule)
+├── src/
+│   ├── browser/                   # BrowserEngine
+│   ├── search/                    # SearchEngine
+│   ├── extractor/                 # ContentExtractor
+│   └── converter/                 # MarkdownConverter
+├── results/                       # 搜索结果
+├── .cache/                        # 本地缓存 + 浏览器 Profile
+├── .anws/v1/                      # 架构文档 (当前版本)
+└── .claude/                       # Claude Code 工作流
 ```
 
 ---
 
 ## 🧭 导航指南 (Navigation Guide)
 
-> **注意**: 此部分由 `/genesis` 维护。
-
-- **在新架构就绪前**: 请勿大规模修改代码。
-- **架构总览**: `.anws/v{N}/02_ARCHITECTURE_OVERVIEW.md`
-- **ADR**: `.anws/v{N}/03_ADR/` (跨系统决策的唯一记录源)
-- **遇到架构问题**: 请查阅 `.anws/v{N}/03_ADR/`。
+- **架构总览**: `.anws/v1/02_ARCHITECTURE_OVERVIEW.md`
+- **ADR**: `.anws/v1/03_ADR/` (跨系统决策的唯一记录源)
+- **详细设计**: `.anws/v1/04_SYSTEM_DESIGN/` ✅ (4 系统已完成)
+- **任务清单**: 待 `/blueprint` 执行 (将生成 `.anws/v1/05_TASKS.md`)
+- **BrowserEngine**: 源码 `src/browser/` → 设计 [browser-engine.md](.anws/v1/04_SYSTEM_DESIGN/browser-engine.md) ✅
+- **SearchEngine**: 源码 `src/search/` → 设计 [search-engine.md](.anws/v1/04_SYSTEM_DESIGN/search-engine.md) ✅
+- **ContentExtractor**: 源码 `src/extractor/` → 设计 [content-extractor.md](.anws/v1/04_SYSTEM_DESIGN/content-extractor.md) ✅
+- **MarkdownConverter**: 源码 `src/converter/` → 设计 [markdown-converter.md](.anws/v1/04_SYSTEM_DESIGN/markdown-converter.md) ✅
 
 ---
 
 ### 技术栈决策
-- [由 .anws/tech-evaluator 或 /genesis 自动填充]
+- 语言: Python 3.8+
+- 浏览器引擎: Camoufox (Firefox 133+)，Git Submodule 管理
+- HTML 解析: BeautifulSoup4
+- Markdown 转换: html-to-markdown
+- 缓存: collections.OrderedDict + TTL
 
 ### 系统边界
-- [由 .anws/system-architect 或 /genesis 自动填充]
+- **BrowserEngine**: Camoufox 浏览器生命周期、Profile 持久化、反检测配置
+- **SearchEngine**: 搜索全流程编排、LRU 缓存、分级错误降级
+- **ContentExtractor**: AI 完成检测、多语言引用提取、DOM 清洗
+- **MarkdownConverter**: HTML→Markdown、脚注格式化、文件保存
 
 ### 活跃 ADR
-- [由 .anws 自动填充 ADR 摘要]
+- **ADR-001**: 浏览器引擎选型 — Camoufox (总分 51/60 vs Patchright 36/60)
+- **ADR-002**: Camoufox 集成方式 — Git Submodule (精确版本锁定 + 即时上游更新)
+- **ADR-003**: 测试策略 — E2E 集成测试为主 + 单元测试为辅，无 CI
 
 ### 当前任务状态
 - [由 blueprint/forge 自动更新]
@@ -131,4 +142,4 @@ src/
 <!-- AUTO:END -->
 
 ---
-> **状态自检**: 准备好了？提醒用户运行 `/quickstart` 开始吧。
+> **状态自检**: /genesis 完成！运行 `/design-system` 或 `/blueprint` 继续。

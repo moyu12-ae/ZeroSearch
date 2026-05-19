@@ -1,0 +1,183 @@
+{
+  "glossary": {
+    "Google AI Mode": "Google 的 AI 搜索模式 (udm=50 参数)，AI 自动综合多个来源生成带引用的结构化回答",
+    "Camoufox": "基于 Firefox 的反检测浏览器自动化库，原生反指纹能力。通过 Git Submodule 管理",
+    "Patchright": "旧版浏览器引擎 (Playwright/Chromium 变体)，本次将被替换",
+    "SearchEngine": "搜索引擎核心模块，协调浏览器→搜索→提取→转换全链路",
+    "BrowserFactory": "浏览器实例工厂，负责启动/配置/复用浏览器上下文",
+    "ContentExtractor": "内容提取器，从 Google AI 页面提取 AI 概述和引用链接",
+    "Citation": "引用项，包含标题、URL、序号，以脚注形式 [1][2][3] 内联呈现",
+    "Skill": "Claude Code 的可复用能力单元，通过 SKILL.md 定义使用方式",
+    "Browser Context Reuse": "复用浏览器会话（cookies/profile），避免 Google 重复 CAPTCHA 验证",
+    "AI Completion Detection": "检测 Google AI 回答是否渲染完成的机制，多语言选择器 + 超时回退"
+  },
+  "entities": [
+    {
+      "name": "BrowserEngine",
+      "type": "服务",
+      "necessity": "必须",
+      "description": "浏览器自动化引擎（Camoufox），负责启动 Firefox、管理浏览器上下文、反检测指纹伪装"
+    },
+    {
+      "name": "SearchEngine",
+      "type": "聚合根",
+      "necessity": "必须",
+      "description": "搜索引擎核心，编排搜索→等待AI结果→提取内容→转换Markdown全流程"
+    },
+    {
+      "name": "ContentExtractor",
+      "type": "服务",
+      "necessity": "必须",
+      "description": "内容提取器，解析Google AI Mode页面DOM，提取AI概述正文和引用列表"
+    },
+    {
+      "name": "MarkdownConverter",
+      "type": "服务",
+      "necessity": "必须",
+      "description": "HTML到Markdown转换器，将提取的HTML转换为带脚注的Markdown"
+    },
+    {
+      "name": "SearchResult",
+      "type": "值对象",
+      "necessity": "必须",
+      "description": "搜索结果值对象，包含AI摘要文本、引用列表 [title, url]、搜索元数据"
+    },
+    {
+      "name": "BrowserProfile",
+      "type": "实体",
+      "necessity": "必须",
+      "description": "持久化浏览器Profile，保存cookies/session/偏好设置，复用以避免CAPTCHA"
+    },
+    {
+      "name": "VenVManager",
+      "type": "服务",
+      "necessity": "必须",
+      "description": "Python虚拟环境管理器，首次运行时自动创建.venv并安装依赖"
+    },
+    {
+      "name": "CacheManager",
+      "type": "服务",
+      "necessity": "可选",
+      "description": "搜索结果缓存管理器，相同查询短期内直接返回缓存，减少搜索次数"
+    }
+  ],
+  "flows": [
+    {
+      "from": "Claude Code",
+      "action": "触发Skill",
+      "to": "SearchEngine",
+      "data": "搜索关键词",
+      "trigger": "用户请求web research",
+      "mode": "同步"
+    },
+    {
+      "from": "SearchEngine",
+      "action": "获取/复用浏览器上下文",
+      "to": "BrowserEngine",
+      "data": "Profile路径、启动参数",
+      "mode": "同步",
+      "optimization": "上下文复用，避免冷启动"
+    },
+    {
+      "from": "BrowserEngine",
+      "action": "导航到Google AI Mode",
+      "to": "Google Search",
+      "data": "udm=50 URL + 优化查询",
+      "mode": "同步",
+      "optimization": "Camoufox反检测绕过CAPTCHA"
+    },
+    {
+      "from": "SearchEngine",
+      "action": "等待AI回答完成",
+      "to": "Google Search Page",
+      "data": "多语言完成选择器",
+      "mode": "同步+超时",
+      "optimization": "15s→5s自适应超时"
+    },
+    {
+      "from": "SearchEngine",
+      "action": "提取AI内容",
+      "to": "ContentExtractor",
+      "data": "DOM Page对象",
+      "mode": "同步"
+    },
+    {
+      "from": "ContentExtractor",
+      "action": "转换HTML→Markdown",
+      "to": "MarkdownConverter",
+      "data": "HTML content + 引用列表",
+      "mode": "同步"
+    },
+    {
+      "from": "SearchEngine",
+      "action": "缓存结果(可选)",
+      "to": "CacheManager",
+      "data": "SearchResult JSON",
+      "mode": "异步",
+      "optimization": "减少重复搜索"
+    },
+    {
+      "from": "SearchEngine",
+      "action": "返回结构化结果",
+      "to": "Claude Code",
+      "data": "Markdown + [1][2][3] 脚注引用",
+      "mode": "同步"
+    }
+  ],
+  "missing_components": [
+    {
+      "component": "Camoufox与现有脚本的适配层",
+      "category": "集成",
+      "priority": "高",
+      "reason": "Camoufox API 与 Patchright 不完全兼容，需要适配 BrowserFactory 和 StealthUtils"
+    },
+    {
+      "component": "Camoufox 启动预热机制",
+      "category": "性能",
+      "priority": "高",
+      "reason": "Firefox 冷启动比 Chrome 慢，需要预热/常驻策略抵消"
+    },
+    {
+      "component": "CacheManager 实现",
+      "category": "性能",
+      "priority": "中",
+      "reason": "重复查询缓存可避免搜索+页面等待，显著减少等待时间"
+    },
+    {
+      "component": "上游更新策略",
+      "category": "维护",
+      "priority": "中",
+      "reason": "Camoufox submodule 更新后，需要验证兼容性、跑测试的流程"
+    },
+    {
+      "component": "错误恢复机制",
+      "category": "可靠性",
+      "priority": "中",
+      "reason": "浏览器崩溃、网络超时、CAPTCHA 等异常场景的优雅降级"
+    },
+    {
+      "component": "测试套件",
+      "category": "质量",
+      "priority": "低",
+      "reason": "原项目缺少自动化测试，迁移后需要基础的E2E和单元测试"
+    }
+  ],
+  "clarifications": [
+    {
+      "question": "Camoufox 如何管理以跟踪上游更新？",
+      "answer": "Git Submodule — 直接引用 daijro/camoufox.git，git submodule update 同步上游"
+    },
+    {
+      "question": "google-ai-mode 原有代码如何管理？",
+      "answer": "复制到本项目独立演进，不再追踪上游仓库"
+    },
+    {
+      "question": "性能优化的范围？",
+      "answer": "全链路优化——浏览器启动、页面等待、结果解析、搜索Pipeline全部环节"
+    },
+    {
+      "question": "本仓库与 Skill 部署关系？",
+      "answer": "仓库即Skill——本身放置在 ~/.claude/skills/google-ai-mode/，代码即最终产物"
+    }
+  ]
+}
