@@ -1,6 +1,6 @@
 ---
 name: zerosearch
-description: Use this skill whenever the user needs current information, documentation, coding examples, or web research beyond the knowledge cutoff. Queries Google's AI Search mode via Camoufox engine, or falls back to Chrome DevTools browser for direct official source access. Returns structured markdown with source citations. Ideal for you to get new information and clues for further research. Trigger when user mentions web research, current events, latest docs, API references, technical comparisons, "search for", "look up", or asks about anything post-2025.
+description: Use this skill whenever the user needs current information, documentation, coding examples, or web research beyond the knowledge cutoff. Two strategies — first try Chrome DevTools browser to access official sources directly (fastest, no CAPTCHA), or run the Camoufox Python engine for Google AI-synthesized overviews. Returns structured markdown with source citations. Trigger when user mentions web research, current events, latest docs, API references, technical comparisons, "search for", "look up", or asks about anything post-2025.
 ---
 
 # ZeroSearch
@@ -18,45 +18,49 @@ Two-tier web research skill. **Primary**: Chrome DevTools MCP browser navigation
 - Research requiring verifiable citations and sources
 - Any question where "I think" isn't good enough — verify against live sources
 
-## Two-Tier Research Strategy
+## Research Strategy
 
-### Tier 1: Chrome DevTools MCP Browser Research (Primary)
+ZeroSearch provides two complementary approaches:
 
-When Chrome DevTools MCP is available, use it to navigate directly to official sources. This is the fastest and most reliable approach — no dependencies, no CAPTCHA, no regional restrictions.
+### Strategy 1: Chrome DevTools Browser Research (Recommended First)
+
+**This is a skill-level methodology** — it teaches you HOW to do real-time web research using the Chrome DevTools MCP tools available in your environment. It requires no Python dependencies and never triggers CAPTCHA.
 
 ```
 1. Identify the authoritative source (e.g. react.dev, nextjs.org, eur-lex.europa.eu)
-2. Navigate to the page with Chrome DevTools MCP
-3. Use evaluate_script to extract headings, code samples, key data
-4. Take snapshot for full page content
-5. Visit multiple sources to cross-verify claims
+2. Navigate with Chrome DevTools MCP: mcp__chrome-devtools-mcp__navigate_page
+3. Extract data with evaluate_script (headings, code, key facts)
+4. Cross-verify across at least 2 independent sources
+5. Preserve all source URLs for citation
 ```
 
-**Best for**: Official documentation, EU/regulatory texts, GitHub repos, any site with stable URLs.
+**When to use**: Official docs, regulatory texts, GitHub repos, any site with stable URLs.
 
-### Tier 2: Camoufox Python Engine (Secondary)
+### Strategy 2: Camoufox Python Engine (Google AI Mode)
 
-The Python search pipeline uses Camoufox (Firefox v135+ with anti-fingerprinting) to query Google AI Mode (`udm=50`). Use this when you need Google's AI-synthesized overview from 100+ sources.
+This project's Python pipeline uses Camoufox (Firefox v135+ with anti-fingerprinting) to query Google AI Mode (`udm=50`). Use when you specifically need Google's AI-synthesized overview from 100+ sources.
 
 ```bash
 python src/search/run.py --query "your optimized query" --save --debug
 ```
 
-**Available when**: Camoufox submodule is initialized, Google AI Mode is accessible from your region.
+**Requirements**: Camoufox submodule initialized, Google AI Mode accessible from your region.
 
-### Fallback Decision Tree
+### Decision Flow
 
 ```
 User needs web research
   │
-  ├─ Chrome DevTools MCP available?
-  │   └─ YES → Navigate official sources directly (Tier 1)
+  ├─ Authoritative official source known?
+  │   └─ YES → Use Strategy 1 (Chrome DevTools browser)
   │
-  └─ Need Google AI synthesis?
-      └─ Try `python src/search/run.py`
-          ├─ Success → Use AI Overview + citations
-          ├─ CAPTCHA → Tell user "Run with --show-browser to solve CAPTCHA"
-          └─ AI Mode unavailable → Fall back to Tier 1 or WebFetch
+  ├─ Need broad Google AI synthesis?
+  │   └─ Try `python src/search/run.py`
+  │       ├─ Success → Use AI Overview + citations
+  │       ├─ CAPTCHA → Run with --show-browser to solve manually
+  │       └─ Unavailable → Use Strategy 1 or WebFetch
+  │
+  └─ General research → Strategy 1 preferred (faster, no CAPTCHA risk)
 ```
 
 ## Chrome DevTools MCP Research Methodology
@@ -137,7 +141,7 @@ Camoufox's anti-fingerprinting + persistent browser context minimizes CAPTCHAs. 
 - **Headless mode**: Script returns exit code 2 with CAPTCHA_REQUIRED message
 - **Manual solve**: Re-run with `--show-browser`, solve CAPTCHA in the browser window
 - **After first solve**: Persistent context preserves session, future searches skip CAPTCHA
-- **If persistent**: Delete `~/.cache/zerosearch/camoufox_profile/` to reset
+- **If persistent**: Delete `~/.cache/zerosearch/firefox_profile/` to reset
 
 ## Output Format
 
@@ -166,7 +170,7 @@ https://react.dev/reference/rsc/server-actions
 | `libs/camoufox/` empty | `git submodule update --init --recursive` |
 | Camoufox not found | `python -m camoufox install` |
 | AI Mode not available | Your region doesn't support Google AI Mode. Use Tier 1 browser research or VPN to US/UK |
-| Profile corrupted | Delete `~/.cache/zerosearch/camoufox_profile/` |
+| Profile corrupted | Delete `~/.cache/zerosearch/firefox_profile/` |
 | CAPTCHA every search | Profile may be stale — delete and re-solve once with `--show-browser` |
 
 **Exit Codes (Python Engine):**

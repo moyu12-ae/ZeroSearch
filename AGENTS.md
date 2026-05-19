@@ -74,8 +74,8 @@
 ## 📍 当前状态 (由 Workflow 自动更新)
 
 - **最新架构版本**: `.anws/v1`
-- **活动任务清单**: [05_TASKS.md](.anws/v1/05_TASKS.md) ✅ 23 任务, 4 Sprints
-- **待办任务数**: 23
+- **活动任务清单**: [05_TASKS.md](.anws/v1/05_TASKS.md) ✅ 全部完成 (25/25)
+- **待办任务数**: 0
 - **最近一次更新**: `2026-05-19`
 
 ### 🌊 Wave 6 ✅ — 收尾验证 + 文档 (SKILL.md + 集成测试 + 性能)
@@ -86,10 +86,15 @@ T5.3.1, INT-S1, INT-S2, INT-S3, T6.2.1, T6.2.2, T6.2.3
 ## 🌳 项目结构 (Project Tree)
 
 ```text
-google-ai-mode-skill/              # 仓库根 = Skill 部署位置
+zerosearch/                        # 仓库根 = Skill 部署位置
 ├── SKILL.md                       # Claude Code Skill 定义
-├── README.md
-├── requirements.txt
+├── README.md                      # 项目说明
+├── AGENTS.md                      # AI 协作协议
+├── LICENSE                        # MIT 许可证
+├── setup.sh                       # 首次安装脚本
+├── requirements.txt               # Python 依赖
+├── .gitignore
+├── .gitmodules                    # Camoufox submodule 声明
 ├── libs/
 │   └── camoufox/                  # Camoufox (Git Submodule)
 ├── src/
@@ -97,8 +102,8 @@ google-ai-mode-skill/              # 仓库根 = Skill 部署位置
 │   ├── search/                    # SearchEngine
 │   ├── extractor/                 # ContentExtractor
 │   └── converter/                 # MarkdownConverter
-├── results/                       # 搜索结果
-├── .cache/                        # 本地缓存 + 浏览器 Profile
+├── tests/                         # pytest 单元测试
+├── results/                       # 搜索结果 (--save, 惰性创建)
 ├── .anws/v1/                      # 架构文档 (当前版本)
 └── .claude/                       # Claude Code 工作流
 ```
@@ -110,7 +115,7 @@ google-ai-mode-skill/              # 仓库根 = Skill 部署位置
 - **架构总览**: `.anws/v1/02_ARCHITECTURE_OVERVIEW.md`
 - **ADR**: `.anws/v1/03_ADR/` (跨系统决策的唯一记录源)
 - **详细设计**: `.anws/v1/04_SYSTEM_DESIGN/` ✅ (4 系统已完成)
-- **任务清单**: 待 `/blueprint` 执行 (将生成 `.anws/v1/05_TASKS.md`)
+- **任务清单**: `.anws/v1/05_TASKS.md` ✅ (25/25 全部完成)
 - **BrowserEngine**: 源码 `src/browser/` → 设计 [browser-engine.md](.anws/v1/04_SYSTEM_DESIGN/browser-engine.md) ✅
 - **SearchEngine**: 源码 `src/search/` → 设计 [search-engine.md](.anws/v1/04_SYSTEM_DESIGN/search-engine.md) ✅
 - **ContentExtractor**: 源码 `src/extractor/` → 设计 [content-extractor.md](.anws/v1/04_SYSTEM_DESIGN/content-extractor.md) ✅
@@ -122,7 +127,7 @@ google-ai-mode-skill/              # 仓库根 = Skill 部署位置
 - 语言: Python 3.8+
 - 浏览器引擎: Camoufox (Firefox 133+)，Git Submodule 管理
 - HTML 解析: BeautifulSoup4
-- Markdown 转换: html-to-markdown
+- Markdown 转换: html-to-markdown (主) → markdownify (备) → html2text (保底)
 - 缓存: collections.OrderedDict + TTL
 
 ### 系统边界

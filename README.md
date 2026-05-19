@@ -97,8 +97,12 @@ Camoufox Firefox (v135+) → Google AI Mode (udm=50) → AI 内容提取 → Mar
 zerosearch/
 ├── SKILL.md              # Claude Code Skill 定义
 ├── README.md             # 本文件
+├── AGENTS.md             # AI 协作协议
+├── LICENSE               # MIT 许可证
 ├── setup.sh              # 首次安装脚本
 ├── requirements.txt      # Python 依赖
+├── .gitignore
+├── .gitmodules           # Camoufox submodule
 ├── libs/
 │   └── camoufox/         # Camoufox (Git Submodule)
 ├── src/
@@ -106,8 +110,8 @@ zerosearch/
 │   ├── search/           # SearchEngine
 │   ├── extractor/        # ContentExtractor
 │   └── converter/        # MarkdownConverter
-├── tests/                # 单元测试 (pytest)
-├── results/              # 搜索结果 (--save)
+├── tests/                # pytest 单元测试
+├── results/              # 搜索结果 (--save, 惰性创建)
 ├── .anws/                # 架构文档
 │   └── v1/               # 当前版本
 └── .claude/              # Claude Code 工作流
