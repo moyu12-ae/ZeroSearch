@@ -237,10 +237,14 @@ def _insert_footnote_markers(
 def _build_sources_section(citations: list) -> str:
     """构建 ## Sources: 段落内容。
 
-    格式: [N] **{title}**  \n{url}\n
-    （两个空格用于 Markdown 强制换行）
+    格式: [N] Title — URL  （AI 原生精简）
     """
     lines = []
     for cit in citations:
-        lines.append(f'[{cit.index}] **{cit.title}**  \n{cit.url}\n')
+        url = cit.url.strip()
+        title = cit.title.strip()
+        if url:
+            lines.append(f'[{cit.index}] {title} — {url}')
+        else:
+            lines.append(f'[{cit.index}] {title}')
     return '\n'.join(lines)

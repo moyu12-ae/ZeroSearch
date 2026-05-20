@@ -22,6 +22,7 @@ EXIT_ERROR = 1
 EXIT_CAPTCHA = 2
 EXIT_BROWSER_CLOSED = 3
 EXIT_REGION_UNAVAILABLE = 4
+EXIT_PROFILE_LOCKED = 5
 EXIT_INTERRUPTED = 130
 
 # ── 日志级别映射 ─────────────────────────────────────────────────────
@@ -60,10 +61,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="启用调试日志，输出每环节耗时",
     )
     parser.add_argument(
-        "--show-browser",
+        "--profile",
+        type=str,
+        default=None,
+        help="Chrome Profile 路径 (由 SKILL.md System 0 传入)",
+    )
+    parser.add_argument(
+        "--fresh-profile",
         action="store_true",
         default=False,
-        help="显示浏览器窗口 (headless=False)，用于 CAPTCHA 手动解决",
+        help="使用独立空白 Profile（忽略 profile_config.json）",
+    )
+    parser.add_argument(
+        "--reconfigure",
+        action="store_true",
+        default=False,
+        help="重新触发 Profile 选择",
     )
     return parser
 
@@ -125,37 +138,55 @@ def main(argv: list[str] | None = None) -> int:
     logger = logging.getLogger("SearchEngine")
 
     logger.debug(
-        "CLI 参数解析完成 | query=%r | save=%s | debug=%s | show_browser=%s",
+        "CLI 参数解析完成 | query=%r | save=%s | debug=%s | profile=%r",
         args.query,
         args.save,
         args.debug,
-        args.show_browser,
+        args.profile,
     )
 
     # 确保项目根在 sys.path，支持绝对导入
     _setup_import_path()
 
+    # Profile 路径解析
+    if args.reconfigure:
+        from src.browser.profile_manager import PROFILE_CONFIG_PATH
+        if PROFILE_CONFIG_PATH.exists():
+            PROFILE_CONFIG_PATH.unlink()
+        print("Profile 配置已清除。下次运行将重新选择。", file=sys.stderr)
+        return EXIT_SUCCESS
+
+    from src.browser.profile_manager import resolve_profile_path
+
+    profile_path = resolve_profile_path(
+        profile_arg=args.profile or ("--fresh-profile" if args.fresh_profile else None)
+    )
+
+    if profile_path is None:
+        print(
+            "⚠️  首次运行，请在 Claude Code 中触发 /zerosearch "
+            "以完成 Profile 配置。",
+            file=sys.stderr,
+        )
+        print("   或使用 --profile <path> 指定 Profile 路径。", file=sys.stderr)
+        return EXIT_ERROR
+
     # ── 尝试导入并调用 SearchEngine ─────────────────────────────────
     try:
         from src.search.engine import SearchEngine
     except ImportError as exc:
-        # SearchEngine 尚未实现：打印确认信息并以通用错误退出
         logger.warning(
-            "SearchEngine 模块尚未实现 (ImportError: %s)。"
-            " 参数解析成功，当前处于参数验证模式。",
+            "SearchEngine 模块尚未实现 (ImportError: %s)。",
             exc,
         )
-        print(f"[cli] 收到查询: {args.query!r}")
-        print(f"[cli] save      : {args.save}")
-        print(f"[cli] debug     : {args.debug}")
-        print(f"[cli] show-brw  : {args.show_browser}")
         return EXIT_ERROR
 
     # ── 正常工作流 ───────────────────────────────────────────────────
     try:
         engine = SearchEngine(
-            headless=not args.show_browser,
+            headless=False,  # v0.2: 始终有头
             debug=args.debug,
+            profile_path=str(profile_path),
         )
         try:
             result = engine.search(query=args.query, save=args.save)
@@ -200,7 +231,7 @@ def _extract_exit_code(exc: Exception) -> int:
     if hasattr(exc, "exit_code"):
         try:
             code = int(getattr(exc, "exit_code"))  # type: ignore[arg-type]
-            if code in {EXIT_CAPTCHA, EXIT_BROWSER_CLOSED, EXIT_REGION_UNAVAILABLE}:
+            if code in {EXIT_CAPTCHA, EXIT_BROWSER_CLOSED, EXIT_REGION_UNAVAILABLE, EXIT_PROFILE_LOCKED}:
                 return code
         except (TypeError, ValueError):
             pass

@@ -28,6 +28,7 @@ REMOVE_TAGS: List[str] = [
     "form",
     "input",
     "button",
+    "img",   # AI 原生优化: 去除图片 (token 消耗大)
 ]
 
 REMOVE_ATTRIBUTES_PATTERNS: List[str] = [
@@ -147,6 +148,67 @@ def clean_html(raw_html: str) -> str:
     # When <body> exists we return its inner HTML; otherwise return the soup
     # as a string.
     body = soup.body
+    result = ""
     if body is not None:
-        return "".join(str(child) for child in body.contents)
-    return str(soup)
+        result = "".join(str(child) for child in body.contents)
+    else:
+        result = str(soup)
+
+    # AI 原生优化: 清除 Google AI Mode 特有的 UI 噪音
+    result = _strip_google_ui_noise(result)
+    return result
+
+
+# Google AI Mode UI 噪音文本（AI 消费端不需要）
+_UI_NOISE_PATTERNS = [
+    r"Skip to main content",
+    r"Accessibility help",
+    r"Accessibility feedback",
+    r"Quick Settings",
+    r"AI Mode history",
+    r"New thread",
+    r"You're signed out",
+    r"To access history and more,",
+    r"sign in to your account",
+    r"Delete all searches\?",
+    r"You won't be able to return to these responses",
+    r"Delete all",
+    r"Manage public links",
+    r"My Google Search History",
+    r"AI can make mistakes,? so double-check responses",
+    r"Copy\n",
+    r"Share public link",
+    r"This public link is valid for 7 days",
+    r"Creating a public link\.\.\.",
+    r"Facebook\n",
+    r"Gmail\n",
+    r"X\n",
+    r"Reddit\n",
+    r"WhatsApp\n",
+    r"Good response\n",
+    r"Bad response\n",
+    r"Saved time\n",
+    r"Clear\n",
+    r"Helpful\n",
+    r"Comprehensive\n",
+    r"Other\n",
+    r"Incorrect\n",
+    r"Inappropriate\n",
+    r"Not working\n",
+    r"Unhelpful\n",
+    r"A copy of this chat will be included",
+    r"Your feedback will include a copy",
+    r"Set browser language",
+]
+
+
+def _strip_google_ui_noise(html: str) -> str:
+    """移除 Google AI Mode 页面特有的 UI 噪音文本。
+
+    这些文本在 AI 消费端毫无价值，纯粹浪费 token。
+    """
+    for pattern in _UI_NOISE_PATTERNS:
+        html = re.sub(pattern, '', html)
+    # 去除连续空行 (>2)
+    html = re.sub(r'\n{3,}', '\n\n', html)
+    return html.strip()
