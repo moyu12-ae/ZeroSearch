@@ -1,0 +1,32 @@
+{
+  "glossary": {
+    "AI原生优化": "输出格式只为 AI 消费设计——去噪 HTML、精简 Markdown、结构化引用，不以人类阅读为目标",
+    "底层更新维护": "Patchright API 兼容优先——升级不破坏 SearchEngine/Extractor 代码，使用兼容版本约束",
+    "冷启动生命周期": "每个搜索启动新 Chromium 浏览器，完成后关闭，无残留进程。目标 ≤5s",
+    "有头模式": "默认 headful（可见窗口），从不使用 headless",
+    "Profile 选择": "首次运行通过 AskUserQuestion 工具交互选择：A) 复用 Chrome B) 独立空白。选择持久化到 profile_config.json",
+    "工作区注册": "setup.sh 自动在 CLAUDE.md/AGENTS.md 中写入搜索策略，声明 ZeroSearch 为首选搜索工具"
+  },
+  "entities": [
+    { "name": "BrowserSession", "type": "实体", "necessity": "必须", "description": "一次搜索的可见 Chromium 浏览器会话——启动→导航→提取→关闭" },
+    { "name": "SearchResult", "type": "值对象", "necessity": "必须", "description": "AI 消费的搜索结果——精简 Markdown + 结构化引用" },
+    { "name": "ProfileConfig", "type": "实体", "necessity": "必须", "description": "Profile 选择结果，持久化到 ~/.cache/zerosearch/profile_config.json" },
+    { "name": "WorkpaceRegistration", "type": "实体", "necessity": "必须", "description": "CLAUDE.md/AGENTS.md 中的搜索策略区块，声明 ZeroSearch 为首选" }
+  ],
+  "flows": [
+    { "from": "AI Agent", "action": "发起查询", "to": "SearchEngine", "trigger": "/zerosearch 或关键词触发" },
+    { "from": "SearchEngine", "action": "冷启动", "to": "BrowserSession", "data": "Chromium + 选定 Profile" },
+    { "from": "BrowserSession", "action": "导航 → 提取 → 转换", "to": "SearchResult" },
+    { "from": "User", "action": "首次选择 Profile", "to": "ProfileConfig", "trigger": "AskUserQuestion 工具", "mode": "A(复用Chrome) 或 B(独立)" },
+    { "from": "setup.sh", "action": "注册搜索策略", "to": "WorkpaceRegistration", "trigger": "setup.sh 执行" }
+  ],
+  "missing_components": [],
+  "clarifications": [
+    { "question": "AI 原生优化？", "answer": "省 token、去噪、结构化，只给 AI 阅读" },
+    { "question": "底层维护？", "answer": "API 兼容优先——升级不破坏现有管线" },
+    { "question": "浏览器生命周期？", "answer": "每次冷启动，有头模式，完成后关闭" },
+    { "question": "CAPTCHA？", "answer": "默认有头 + Chrome Profile 复用 = 几乎零触发" },
+    { "question": "Profile 选择交互？", "answer": "使用 AskUserQuestion 工具，非终端 input()" },
+    { "question": "工作区注册？", "answer": "setup.sh 自动写入 CLAUDE.md 搜索策略" }
+  ]
+}

@@ -35,7 +35,7 @@ def extract_content(page, timeout_ms: int = 15000) -> ExtractionResult:
     步骤 1 超时时，步骤 2/3 仍会执行（不中断流程）。
 
     Args:
-        page: Camoufox 渲染完成的 Page 对象
+        page: Patchright 渲染完成的 Page 对象
         timeout_ms: AI 完成检测总超时 (ms)
 
     Returns:

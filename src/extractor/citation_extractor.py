@@ -166,7 +166,7 @@ def extract_citations(page) -> list[dict]:
 
     Parameters
     ----------
-    page : Camoufox Page 对象
+    page : Patchright Page 对象
 
     Returns
     -------
@@ -230,7 +230,7 @@ def extract_citations(page) -> list[dict]:
                 if not url:
                     continue
 
-                # Camoufox 可能返回相对路径；额外兜底
+                # Patchright 可能返回相对路径；额外兜底
                 if url.startswith("/") and not url.startswith("//"):
                     try:
                         url = page.url.rstrip("/") + url

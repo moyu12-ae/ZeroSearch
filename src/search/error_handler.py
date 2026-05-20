@@ -137,7 +137,7 @@ class ErrorHandler:
         4. 检查页面标题是否包含 "sorry"
 
         Args:
-            page: Camoufox/Playwright Page 对象
+            page: Patchright/Playwright Page 对象
 
         Returns:
             空字符串表示无 CAPTCHA；非空字符串为 CAPTCHA 错误消息
@@ -207,7 +207,7 @@ class ErrorHandler:
         重试策略: 自动重试 1 次，使用同一 query 重新导航。
 
         Args:
-            page: Camoufox/Playwright Page 对象
+            page: Patchright/Playwright Page 对象
             query: 搜索查询字符串，用于重试导航
 
         Returns:
@@ -254,7 +254,7 @@ class ErrorHandler:
         降级策略: 提取搜索结果的标题和摘要，标记为 [ASSUMPTION: 非 AI 结果]。
 
         Args:
-            page: Camoufox/Playwright Page 对象
+            page: Patchright/Playwright Page 对象
 
         Returns:
             - None: AI Mode 可用，无需降级
@@ -319,7 +319,7 @@ class ErrorHandler:
         """从页面中提取普通搜索结果 (标题 + 摘要)。
 
         Args:
-            page: Camoufox/Playwright Page 对象
+            page: Patchright/Playwright Page 对象
 
         Returns:
             格式化的搜索结果文本，提取失败返回空字符串

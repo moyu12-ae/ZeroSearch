@@ -6,7 +6,7 @@ AI 完成检测模块 (T3.1.1)
   Stage 3: 文本长度 > 200 chars 且 1s 内稳定
   Stage 4: 15s 硬超时回退
 
-输入: Camoufox Page 对象 (playwright.sync_api.Page)
+输入: Patchright Page 对象 (playwright.sync_api.Page)
 输出: (ai_text: str, completed: bool)
 
 设计依据: .anws/v1/04_SYSTEM_DESIGN/content-extractor.md §6.3
@@ -125,7 +125,7 @@ def detect_ai_completion(page, timeout_ms: int = 8000) -> tuple[str, bool]:
     Parameters
     ----------
     page
-        Playwright/Patchero 同步 Page 对象（Camoufox BrowserContext 页面）。
+        Playwright/Patchright 同步 Page 对象（Patchright BrowserContext 页面）。
     timeout_ms : int
         总超时时间（毫秒），默认 15000ms（15s）。
 
