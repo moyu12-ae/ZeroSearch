@@ -181,6 +181,62 @@ zerosearch/
 
 ---
 
+## 后续开发计划 v0.3
+
+### 1. Chrome 持久化 Daemon
+
+首次冷启动后 Chrome 不关闭，后续搜索复用同一浏览器实例（只关标签页）。
+
+| 当前 | v0.3 目标 |
+|------|----------|
+| 每次搜索冷启动 ~5s | 首次 ~5s，后续 <1s |
+| 搜索完关闭整个浏览器 | 只关标签页，Chrome 常驻 |
+
+### 2. Plugin 化
+
+从单 Skill 升级为 Claude Code Plugin，功能拆分为独立命令：
+
+```
+/zerosearch        → 快速搜索（当前核心功能）
+/zerosearch-init   → 初始化配置（Profile + 默认搜索工具注册）
+/deepresearch      → 深度研究（多轮自动搜索，见下）
+/zerosearch-crawl  → 开启引用爬取模式（见下）
+```
+
+### 3. Deep Research — 多轮深度搜索
+
+类似 Google Deep Research，进行多轮自动搜索，逐步深入主题：
+
+```
+首轮搜索 → Claude 分析结果 → 生成追问 → 继续搜索 → 整合最终报告
+```
+
+- 可设定最大轮次（默认 3 轮）
+- 每轮基于前一轮结果自动生成追问
+- 最终产出整合报告 + 完整引用链
+
+### 4. 引用网页爬取 + 本地剪藏
+
+开启 `--crawl` 选项后，双 Agent 架构运行：
+
+```
+Agent A (搜索)
+  Chrome → Google AI Mode → 保存 AI 摘要 + 提取引用链接列表
+                              ↓
+Agent B (爬取+剪藏)
+  逐链打开 → 提取正文 → 保存为 Markdown 到 results/sources/
+                              ↓
+Final AI (跨文件阅读)
+  Claude 同时阅读 AI 摘要 + 所有剪藏原文 → 综合输出
+```
+
+- **0 新依赖**：复用 Chrome Daemon + BeautifulSoup
+- Agent B 在已有 Chrome 实例中并发多标签页爬取
+- 每个链接 ~3-5s，并发后总耗时可控
+- 剪藏格式为标准 Markdown，存入本地 `results/sources/`
+
+---
+
 ## 测试
 
 ```bash
