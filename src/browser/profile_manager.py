@@ -44,7 +44,7 @@ def save_profile_config(config: dict) -> None:
     PROFILE_CONFIG_PATH.write_text(json.dumps(config, indent=2))
 
 
-def resolve_profile_path(profile_arg: Optional[str] = None) -> Path:
+def resolve_profile_path(profile_arg: Optional[str] = None) -> Optional[Path]:
     """根据 profile_config.json 或 CLI 参数解析 Profile 路径。
 
     优先级: CLI --profile > profile_config.json > None

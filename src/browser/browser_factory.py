@@ -5,9 +5,7 @@ BrowserFactory — Patchright 浏览器实例工厂
 接口对齐 Architecture v2 §2.1 BrowserEngine 操作契约。
 """
 
-import os
 import json
-import shutil
 from pathlib import Path
 from typing import Optional
 

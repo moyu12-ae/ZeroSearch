@@ -51,6 +51,7 @@ class StealthConfig:
     browser_args: list = field(default_factory=lambda: [
         "--disable-blink-features=AutomationControlled",
         "--disable-dev-shm-usage",
+        "--no-sandbox",
         "--no-first-run",
         "--no-default-browser-check",
         "--lang=en",
@@ -117,8 +118,6 @@ class StealthUtils:
         if element:
             box = element.bounding_box()
             if box:
-                x = box["x"] + box["width"] / 2
-                y = box["y"] + box["height"] / 2
                 steps = 5
                 for i in range(1, steps + 1):
                     px = box["x"] + (box["width"] * i / steps)
