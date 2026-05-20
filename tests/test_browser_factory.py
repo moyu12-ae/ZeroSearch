@@ -51,19 +51,20 @@ class TestStealthConfig:
         assert True  # import success is the test
 
 
-class TestProfileResolution:
-    """Profile 路径解析"""
+class TestProfileManager:
+    """Profile 管理器"""
 
-    def test_resolve_with_explicit_path(self):
-        from src.browser.profile_manager import resolve_profile_path
-        result = resolve_profile_path("/tmp/test_profile")
-        assert result == Path("/tmp/test_profile")
-
-    def test_resolve_fresh_profile(self):
-        from src.browser.profile_manager import resolve_profile_path
-        result = resolve_profile_path("--fresh-profile")
+    def test_default_profile_path(self):
         from src.browser.profile_manager import DEFAULT_PROFILE_DIR
-        assert result == DEFAULT_PROFILE_DIR
+        from pathlib import Path
+        assert DEFAULT_PROFILE_DIR == Path.home() / ".cache" / "zerosearch" / "chrome_profile"
+
+    def test_profile_manager_creates_dir(self, tmp_path):
+        from src.browser.profile_manager import ProfileManager
+        pm = ProfileManager(tmp_path / "test_profile")
+        result = pm.ensure_profile()
+        assert result.exists()
+        assert pm.is_new is True
 
 
 class TestDOMCleanerAIOptimization:

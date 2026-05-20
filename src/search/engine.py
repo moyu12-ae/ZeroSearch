@@ -28,10 +28,10 @@ class SearchEngine:
     CACHE_SIZE = 50
     CACHE_TTL = 300  # 5 分钟
 
-    def __init__(self, headless: bool = False, debug: bool = False, profile_path: str = None):
+    def __init__(self, headless: bool = False, debug: bool = False):
         self._headless = headless
         self._debug = debug
-        self._browser = BrowserContext(headless=headless, profile_dir=Path(profile_path) if profile_path else None)
+        self._browser = BrowserContext(headless=headless)
         self._cache = LRUCache(max_size=self.CACHE_SIZE, ttl_seconds=self.CACHE_TTL)
         self._error_handler = ErrorHandler(max_retries=3)
         atexit.register(self.shutdown)  # 确保 Python 退出时自动关闭浏览器

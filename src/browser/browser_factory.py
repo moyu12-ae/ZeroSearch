@@ -5,8 +5,6 @@ BrowserFactory — Patchright 浏览器实例工厂
 接口对齐 Architecture v2 §2.1 BrowserEngine 操作契约。
 """
 
-import subprocess
-import time
 import json
 from pathlib import Path
 from typing import Optional
@@ -77,9 +75,6 @@ class BrowserFactory:
             # 写入英文语言偏好 (借鉴原版 google-ai-mode-skill)
             self._write_language_prefs(profile_path)
 
-            # Option A: 使用真实 Chrome Profile → 自动关闭正在运行的 Chrome
-            self._auto_close_chrome(profile_path)
-
             self._playwright = sync_playwright().start()
 
             launch_kwargs = {
@@ -109,53 +104,6 @@ class BrowserFactory:
             raise BrowserLaunchError(
                 f"Failed to launch Chrome browser: {e}"
             ) from e
-
-    @staticmethod
-    def _auto_close_chrome(profile_path: Path) -> None:
-        """若使用真实 Chrome Profile，自动关闭正在运行的 Chrome。
-
-        真实 Chrome Profile 不能被两个进程同时使用。
-        macOS 通过 osascript 发送 quit 命令优雅退出。
-        """
-        import sys
-        from pathlib import Path as _Path
-
-        # 仅对真实 Chrome Profile 执行（路径包含 "Application Support/Google/Chrome"）
-        chrome_app_path = _Path.home() / "Library" / "Application Support" / "Google" / "Chrome"
-        try:
-            if profile_path.resolve() != chrome_app_path.resolve():
-                return  # 不是真实 Chrome Profile，无须关闭
-        except OSError:
-            return
-
-        # 检测 Chrome 是否正在运行
-        try:
-            result = subprocess.run(
-                ["pgrep", "-f", "Google Chrome"],
-                capture_output=True, text=True, timeout=5,
-            )
-            if result.returncode != 0:
-                return  # Chrome 未运行
-        except Exception:
-            return
-
-        print(
-            "⚠️  检测到 Chrome 正在运行，正在自动关闭...",
-            file=sys.stderr,
-        )
-        try:
-            subprocess.run(
-                ["osascript", "-e", 'quit app "Google Chrome"'],
-                capture_output=True, text=True, timeout=15,
-            )
-            # 等待 Chrome 完全退出（释放 Profile 锁）
-            time.sleep(2)
-            print("    Chrome 已关闭，继续启动搜索...", file=sys.stderr)
-        except Exception:
-            print(
-                "    ⚠️  无法自动关闭 Chrome，请手动关闭后重试。",
-                file=sys.stderr,
-            )
 
     def _write_language_prefs(self, profile_path: Path) -> None:
         """写入英文语言偏好到 Chrome Profile。
