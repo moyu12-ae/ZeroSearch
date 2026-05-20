@@ -142,39 +142,32 @@ ZeroSearch v0.2 将底层浏览器引擎从 Camoufox (Firefox) 迁移到 Patchri
 
 ---
 
-### [REQ-009] P1 — 工作区自动注册为默认搜索工具
+### [REQ-009] P1 — 首次运行设为默认搜索工具（AskUserQuestion）
 
-**As a** 开发者, **I want** setup.sh to automatically register ZeroSearch as the preferred search tool in the workspace's CLAUDE.md/AGENTS.md, **so that** the AI agent always uses ZeroSearch first for web research without manual configuration.
+**As a** 开发者, **I want** to choose on first run how ZeroSearch registers itself as the default search tool, **so that** I have full control over privacy and scope.
 
 **验收标准**：
-- **Given** 执行 `setup.sh`
-- **When** 安装完成
-- **Then** 检测当前工作区的 `CLAUDE.md`（项目级）或 `~/.claude/CLAUDE.md`（用户级）
-- **And** 在文件中追加搜索策略区块：
-  ```markdown
-  ## 搜索策略
-  
-  - **首选搜索引擎**: ZeroSearch（触发 `/zerosearch` 或关键词：搜索、search、查一下、最新、文档）
-  - 当需要网页信息、实时数据、最新文档、技术对比时，优先使用 ZeroSearch 的 Google AI Mode
-  - ZeroSearch 配置目录: ~/.cache/zerosearch/
-  ```
-- **And** 如果 CLAUDE.md 已存在搜索策略，提示用户手动合并而非覆盖
-- **And** 提供 `--no-register` flag 跳过注册
+- **Given** 首次使用 `/zerosearch`
+- **When** SKILL.md 检测 `~/.claude/CLAUDE.md` 和项目级 `CLAUDE.md` 均不含 "ZeroSearch"
+- **Then** Claude 调用 `AskUserQuestion` 显示三个选项：
+  - **Header**: "默认搜索工具"
+  - **用户级 (推荐)**: 写入 `~/.claude/CLAUDE.md`，所有项目生效
+  - **项目级**: 写入当前工作区 `CLAUDE.md`，仅本项目生效
+  - **不注册**: 保持原样，手动通过 `/zerosearch` 触发
+- **And** 用户选择后执行对应操作
+- **And** 若已注册（任意层级），跳过询问直接搜索
 
-**CLAUDE.md 检测逻辑**：
-1. 优先写项目级 `CLAUDE.md`（当前工作区根目录），若无则写 `~/.claude/CLAUDE.md`
-2. 用 `grep -q "ZeroSearch" CLAUDE.md` 检测是否已注册
-3. 如 CLAUDE.md 包含 `<!-- AUTO:BEGIN -->` 区块，搜索策略写入区块外（区块由 Anws 维护）
-4. 追加内容在文件末尾，保留原有内容不变
-5. 追加前先备份：`cp CLAUDE.md CLAUDE.md.bak`
+**CLAUDE.md 写入逻辑**（用户级/项目级通用）：
+1. 追加前先备份：`cp <target> <target>.bak`
+2. 追加内容在文件末尾，保留原有内容不变
+3. 如 CLAUDE.md 包含 `<!-- AUTO:BEGIN -->` 区块，写入区块外
 
 **边界情况**：
-- CLAUDE.md 不存在 → 创建文件并写入搜索策略
-- 已有 ZeroSearch 注册 → 跳过，提示"搜索策略已存在，跳过注册"
+- 两个层级都已注册 → 跳过询问
 - 权限不足 → 提示手动添加内容（打印待添加的 Markdown 文本）
 - 备份失败 → 仍尝试写入（非阻塞）
 
-**涉及系统**: setup.sh, 项目基础设施
+**涉及系统**: SKILL.md
 
 ---
 

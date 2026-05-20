@@ -9,19 +9,29 @@ Patchright-powered web research skill. Uses undetected Chromium (CDP-level anti-
 
 ## First Run: Default Search Tool
 
-On first use, ask whether to register ZeroSearch as the default search tool:
+On first use, check if ZeroSearch is already registered as the default search tool:
+
+```bash
+grep -rq "ZeroSearch" ~/.claude/CLAUDE.md CLAUDE.md 2>/dev/null
+```
+
+If already registered → skip, proceed to search.
+
+If NOT registered → use `AskUserQuestion` with 3 options:
 
 ```
 AskUserQuestion:
-  header: "默认搜索"
-  question: "是否将 ZeroSearch 设为默认搜索工具？"
+  header: "默认搜索工具"
+  question: "ZeroSearch 尚未设为默认搜索工具。希望注册到哪个层级？"
   options:
-    Yes: "写入 CLAUDE.md 搜索策略，AI 优先使用 ZeroSearch"
-    No: "不修改配置，手动通过 /zerosearch 触发"
+    用户级 (推荐): "写入 ~/.claude/CLAUDE.md，所有项目生效"
+    项目级: "写入当前工作区 CLAUDE.md，仅本项目生效"
+    不注册: "保持原样，手动通过 /zerosearch 触发"
 ```
 
-- **Yes**: Register ZeroSearch in CLAUDE.md (same logic as setup.sh REQ-009)
-- **No**: Skip registration
+- **用户级**: Append search strategy to `~/.claude/CLAUDE.md`
+- **项目级**: Append search strategy to current workspace `CLAUDE.md`
+- **不注册**: Do nothing, user triggers `/zerosearch` manually
 
 ## How It Works
 
