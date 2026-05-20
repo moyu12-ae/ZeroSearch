@@ -112,6 +112,10 @@ def main() -> int:
         _install_deps(project_root, venv_python)
 
     cli_path = project_root / "src" / "search" / "cli.py"
+    if not cli_path.is_file():
+        print(f"[run.py] 错误: 找不到 {cli_path}", file=sys.stderr)
+        return 1
+
     cmd = [venv_python, str(cli_path)] + sys.argv[1:]
 
     result = subprocess.run(cmd, cwd=str(project_root))

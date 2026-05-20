@@ -44,7 +44,7 @@ class ErrorHandler:
         # 检查页面是否为 CAPTCHA
         captcha_msg = handler.handle_captcha(page)
         if captcha_msg:
-            print(captcha_msg, file=sys.stderr)
+            print(captcha_msg, file=sys.stderr)  # v0.2: 默认有头，用户直接操作浏览器窗口
             sys.exit(EXIT_CAPTCHA)
 
         # 网络超时自动重试
@@ -120,7 +120,7 @@ class ErrorHandler:
             summary_lines.append(f"  [{i}] [{ftype}] {fmsg}")
 
         summary_lines.append("")
-        summary_lines.append("建议: 请检查网络连接、代理设置或尝试 --show-browser 模式。")
+        summary_lines.append("建议: 请检查网络连接、代理设置。浏览器窗口已打开，可直接手动验证。")
         summary_lines.append("=" * 60)
 
         return "\n".join(summary_lines)
@@ -191,7 +191,7 @@ class ErrorHandler:
         if is_captcha:
             message = (
                 f"[CAPTCHA] 检测到人机验证页面 ({reason})。\n"
-                f"请使用 --show-browser 参数重新运行以手动完成验证。"
+                f"浏览器窗口已打开，请在窗口中手动完成验证。"
             )
             self._record_failure("captcha", reason)
             return message

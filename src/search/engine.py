@@ -28,7 +28,7 @@ class SearchEngine:
     CACHE_SIZE = 50
     CACHE_TTL = 300  # 5 分钟
 
-    def __init__(self, headless: bool = False, debug: bool = False, profile_path: str | None = None):
+    def __init__(self, headless: bool = False, debug: bool = False, profile_path: str = None):
         self._headless = headless
         self._debug = debug
         self._browser = BrowserContext(headless=headless, profile_dir=Path(profile_path) if profile_path else None)
@@ -111,7 +111,7 @@ class SearchEngine:
         captcha_msg = self._error_handler.handle_captcha(page)
         if captcha_msg:
             if not self._headless:
-                # --show-browser 模式：等待用户手动解决 CAPTCHA
+                # v0.2: 默认有头模式，等待用户手动解决 CAPTCHA
                 print(
                     "⚠️  检测到 CAPTCHA，请在浏览器窗口中手动完成验证。",
                     file=sys.stderr,
@@ -120,9 +120,8 @@ class SearchEngine:
                     "   验证完成后回到终端按 Ctrl+C 继续搜索...",
                     file=sys.stderr,
                 )
-                import time as _time
                 try:
-                    _time.sleep(600)  # 最多等 10 分钟
+                    time.sleep(600)  # 最多等 10 分钟
                 except KeyboardInterrupt:
                     print("\n   继续搜索...", file=sys.stderr)
                 # 重新导航到 Google AI Mode（CAPTCHA 已解决）

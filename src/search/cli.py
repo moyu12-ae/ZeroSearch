@@ -6,7 +6,7 @@ CLI 入口 (T5.1.1) — argparse 参数解析与退出码路由
 调用方式:
     python src/search/cli.py --query "React hooks 2026"
     python src/search/cli.py --query "React hooks" --debug --save
-    python src/search/cli.py --query "React hooks" --show-browser
+    python src/search/cli.py --query "React hooks" --profile "/path/to/chrome"
 """
 
 from __future__ import annotations
@@ -243,6 +243,8 @@ def _extract_exit_code(exc: Exception) -> int:
         return EXIT_BROWSER_CLOSED
     if "region" in combined or "unavailable" in combined:
         return EXIT_REGION_UNAVAILABLE
+    if "profile" in combined and "lock" in combined:
+        return EXIT_PROFILE_LOCKED
 
     return EXIT_ERROR
 
