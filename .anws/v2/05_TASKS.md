@@ -53,8 +53,8 @@ graph TD
 ### [REQ-005, REQ-009] 安装脚本与依赖
 
 - [x] **T1.1.1** [REQ-005]: setup.sh 重写
-  - **描述**: 移除 Camoufox 安装逻辑，改为 `pip install patchright + patchright install chrome`；追加 REQ-009 CLAUDE.md 注册
-  - **输入**: v0.1 setup.sh + [PRD REQ-005](01_PRD.md#req-005-p1--pip-安装与一键升级) + [REQ-009](01_PRD.md#req-009-p1--工作区自动注册为默认搜索工具)
+  - **描述**: 移除 Camoufox 安装逻辑，改为 `pip install patchright + patchright install chrome`（CLAUDE.md 注册移至 SKILL.md AskUserQuestion 流程）
+  - **输入**: v0.1 setup.sh + [PRD REQ-005](01_PRD.md#req-005-p1--pip-安装与一键升级)
   - **输出**: `setup.sh`
   - **📎 参考**: ADR-001 § "需要的后续行动"
   - **验收标准**:

@@ -13,19 +13,19 @@
 ```mermaid
 graph TD
     AI[Claude Code / AI Agent] -->|"/zerosearch" 触发| SKILL[SKILL.md - System 0]
-    SKILL -->|AskUserQuestion| User[User Profile 选择]
-    SKILL -->|"--profile"| CLI[CLI Entry: run.py]
+    SKILL -->|AskUserQuestion| User[User 默认搜索?]
+    User -.->|Yes/No| SKILL
+    SKILL -->|"--query"| CLI[CLI Entry: run.py]
     CLI -->|编排| SE[SearchEngine]
     SE -->|冷启动| BE[BrowserEngine]
     BE -->|导航| Google[Google AI Mode udm=50]
-    BE -.->|读| PC[profile_config.json]
     Google -->|HTML| BE
     BE -->|raw HTML| CE[ContentExtractor]
     CE -->|cleaned HTML + citations| MC[MarkdownConverter]
     MC -->|Markdown + 脚注| SE
     SE -->|结构化结果| AI
     SE -.->|缓存读写| Cache[LRU Cache 内存]
-    BE -.->|持久化| Profile[Chrome Profile]
+    BE -.->|持久化| Profile[~/.cache/zerosearch/chrome_profile/]
 ```
 
 ### 1.2 关键用户
@@ -205,9 +205,9 @@ graph TD
 
 | 系统 | 输入 | 输出 | 依赖系统 | 被依赖系统 |
 |------|------|------|---------|----------|
-| SKILL.md (System 0) | `/zerosearch <query>` + `AskUserQuestion` | `python run.py --query ... --profile <path>` | AskUserQuestion, 文件系统 | — |
-| BrowserEngine | `get_context(profile_path)` | Playwright Page | Patchright, Chrome, profile_config.json | SearchEngine |
-| SearchEngine | CLI args (见上表) | Markdown + 退出码 | Browser, Extractor, Converter | SKILL.md |
+| SKILL.md (System 0) | `/zerosearch <query>` + `AskUserQuestion` | `python run.py --query "..." [--save] [--debug]` | AskUserQuestion | — |
+| BrowserEngine | `get_context()` | Playwright Page | Patchright, Chrome | SearchEngine |
+| SearchEngine | CLI args (--query, --save, --debug) | Markdown + 退出码 | Browser, Extractor, Converter | SKILL.md |
 | ContentExtractor | Playwright Page | ExtractionResult | — | SearchEngine |
 | MarkdownConverter | HTML + Citations | Markdown 字符串 | — | SearchEngine |
 
@@ -217,22 +217,20 @@ graph TD
 
 ```mermaid
 graph TD
-    SKILL[SKILL.md - System 0] -->|--profile| CLI[CLI: run.py / cli.py]
+    SKILL[SKILL.md - System 0] -->|--query| CLI[CLI: run.py / cli.py]
     SKILL -.->|AskUserQuestion| User[User]
-    User -.->|选择 A/B| SKILL
-    SKILL -.->|写| PC[profile_config.json]
+    User -.->|用户级/项目级/否| SKILL
     CLI -->|编排| SE[SearchEngine]
     SE --> BE[BrowserEngine]
     SE --> CE[ContentExtractor]
     SE --> MC[MarkdownConverter]
-    BE -.->|读| PC
     BE --> Chrome[Chrome + Patchright]
     Chrome -.->|系统代理| Proxy[Shadowrocket / ClashX]
     Chrome -->|HTTPS| Google[Google AI Mode]
     Google -->|HTML| CE
     CE -->|cleaned| MC
     MC -->|Markdown| SE
-    
+
     style SKILL fill:#e1ffe1
     style BE fill:#ffe1e1
     style SE fill:#e1f5ff
@@ -295,11 +293,10 @@ ZeroSearch/
 ### 为什么 SKILL.md 独立为 System 0
 
 **SKILL.md 运行在 Claude Code 层**，不是 Python CLI 的一部分。它负责：
-- 用户交互（AskUserQuestion）
-- Profile 选择持久化
-- 将用户选择转换为 CLI 参数
+- 用户交互（AskUserQuestion："默认搜索工具？" → 用户级/项目级/否）
+- 将查询参数转发给 Python CLI
 
-将 SKILL.md 放在任意一个 Python 系统中都会模糊运行层边界。独立为 System 0 后，Python 系统不需要理解 AskUserQuestion——它们只接收 `--profile <path>` 参数。
+将 SKILL.md 放在任意一个 Python 系统中都会模糊运行层边界。独立为 System 0 后，Python 系统不需要理解 AskUserQuestion——它们只接收 `--query` 参数。
 
 **BrowserEngine 独立**: 底层引擎变更（Camoufox→Patchright）应该只影响这一个系统，不波及其他。
 

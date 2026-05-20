@@ -32,8 +32,8 @@ Powered by **Patchright** (undetected Chromium — CDP-level anti-detection)
 | **缓存** | 无 | **LRU 50条 + TTL 5分钟**，重复查询 <1ms |
 | **错误处理** | 无结构化降级 | **6 级退出码** + CAPTCHA/超时/AI不可用分级降级 |
 | **输出** | 基础 Markdown + 引用 | **AI 原生精简**：90+ 模式去噪（中/英/日文）+ 紧凑脚注 |
-| **首次体验** | 无引导 | **AskUserQuestion** 引导设为默认搜索工具 |
-| **工作区集成** | 手动配置 | setup.sh **自动注册** CLAUDE.md 搜索策略 |
+| **首次体验** | 无引导 | **AskUserQuestion** 三选项引导（用户级/项目级/否） |
+| **工作区集成** | 手动配置 | AskUserQuestion 引导注册 CLAUDE.md 搜索策略 |
 | **测试** | 未知 | **29 自动化测试**，回归安全 |
 | **架构文档** | 无 | 完整 PRD + ADR + 系统设计（.anws/v2/） |
 | **CAPTCHA** | 手动切 `--show-browser` | 默认有头，`Ctrl+C` 继续，不切模式 |
