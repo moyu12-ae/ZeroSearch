@@ -131,7 +131,7 @@ class BrowserFactory:
         # 检测 Chrome 是否正在运行
         try:
             result = subprocess.run(
-                ["pgrep", "-x", "Google Chrome"],
+                ["pgrep", "-f", "Google Chrome"],
                 capture_output=True, text=True, timeout=5,
             )
             if result.returncode != 0:

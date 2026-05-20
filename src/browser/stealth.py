@@ -60,6 +60,7 @@ class StealthConfig:
     # 忽略的默认参数 (移除自动化标记)
     ignore_default_args: list = field(default_factory=lambda: [
         "--enable-automation",
+        "--no-sandbox",  # macOS 不需要，Patchright 默认添加
     ])
 
     def to_context_kwargs(self) -> dict:
