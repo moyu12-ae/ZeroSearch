@@ -228,7 +228,7 @@ graph TD
 
 ### [REQ-001] SearchEngine 适配
 
-- [ ] **T3.1.1** [REQ-001]: engine.py 适配
+- [x] **T3.1.1** [REQ-001]: engine.py 适配
   - **描述**: 适配 Patchright BrowserContext API。移除 Camoufox 特定逻辑。保留 `_run_search_pipeline()` 核心流程。`_setup_import_path()` 确保在 `main()` 中调用
   - **输入**: v0.1 `src/search/engine.py` + T2.2.2 产出
   - **输出**: `src/search/engine.py` (微调)
@@ -242,7 +242,7 @@ graph TD
   - **估时**: 0.5h
   - **依赖**: T2.2.2
 
-- [ ] **T3.1.2** [REQ-001]: error_handler.py 适配
+- [x] **T3.1.2** [REQ-001]: error_handler.py 适配
   - **描述**: 更新 CAPTCHA 检测（保持 v0.1 已修复的多关键词 + wait 逻辑）。新增 exit code 5 (Chrome Profile 锁定)。调整 timeout 重试使用 Patchright API
   - **输入**: v0.1 `src/search/error_handler.py` + [PRD REQ-001 错误场景](01_PRD.md)
   - **输出**: `src/search/error_handler.py` (微调)
@@ -260,7 +260,7 @@ graph TD
 
 ### [REQ-003] AI 原生优化
 
-- [ ] **T3.2.1** [REQ-003]: ContentExtractor AI 原生优化
+- [x] **T3.2.1** [REQ-003]: ContentExtractor AI 原生优化
   - **描述**: 保留 4 阶段 AI 检测、17 选择器引用提取、DOM 清洗逻辑。优化：进一步精简输出，移除冗余空白行，压缩引用格式
   - **输入**: v0.1 `src/extractor/` 全部文件 + [PRD REQ-003](01_PRD.md#req-003-p0--ai-原生精简输出)
   - **输出**: `src/extractor/dom_cleaner.py` (微调，增加空白行/样式清理规则)
@@ -274,7 +274,7 @@ graph TD
   - **估时**: 0.5h
   - **依赖**: T3.1.1
 
-- [ ] **T3.2.2** [REQ-003]: MarkdownConverter AI 原生优化
+- [x] **T3.2.2** [REQ-003]: MarkdownConverter AI 原生优化
   - **描述**: 三库 fallback 不变。优化：减少空行（≤1 连续空行），精简 Source 引用格式（仅保留 [N] + 标题 + URL）
   - **输入**: v0.1 `src/converter/` 全部文件
   - **输出**: `src/converter/footnote_formatter.py` (微调)
@@ -290,7 +290,7 @@ graph TD
 
 ### [REQ-002] 测试
 
-- [ ] **T3.3.1** [REQ-002]: 新增 test_browser_factory.py
+- [x] **T3.3.1** [REQ-002]: 新增 test_browser_factory.py
   - **描述**: 单元测试覆盖 BrowserFactory 创建、Profile 路径选择、StealthConfig 生成
   - **输入**: T2.1.1, T2.1.2, T2.2.1 产出 + [PRD §8 测试清单](01_PRD.md#8-验收测试清单)
   - **输出**: `tests/test_browser_factory.py` (新增) + 现有 17 个测试全部通过
@@ -306,7 +306,7 @@ graph TD
 
 ### Sprint 3 最终验证
 
-- [ ] **INT-S3** [MILESTONE]: S3 E2E 验证 — 全流程通过
+- [x] **INT-S3** [MILESTONE]: S3 E2E 验证 — 全流程通过
   - **描述**: 端到端验证：搜索 → 浏览器 → 提取 → 输出。包含 Option A/B Profile、CAPTCHA 检测、CLI 退出码
   - **输入**: 所有 S3 任务产出 + 全部 S1/S2 产出
   - **输出**: E2E 验证报告
