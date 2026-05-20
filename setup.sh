@@ -22,7 +22,7 @@ pip install -r "$SKILL_DIR/requirements.txt" -q
 
 # Step 3: Install Chrome for Testing (Patchright)
 echo "🌐 安装 Chrome 浏览器..."
-python3 -m patchright install chrome
+"$VENV_DIR/bin/python" -m patchright install chrome
 
 # Step 4: Create cache directory
 mkdir -p "$CACHE_DIR"
