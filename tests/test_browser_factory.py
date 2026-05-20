@@ -17,10 +17,12 @@ class TestStealthConfig:
         cfg = StealthConfig()
         assert "--disable-blink-features=AutomationControlled" in cfg.browser_args
 
-    def test_browser_args_include_no_sandbox(self):
+    def test_browser_args_excludes_no_sandbox_on_macos(self):
         from src.browser.stealth import StealthConfig
         cfg = StealthConfig()
-        assert "--no-sandbox" in cfg.browser_args
+        assert "--no-sandbox" not in cfg.browser_args, (
+            "macOS 不需要 --no-sandbox，Chrome 会警告此标记不受支持"
+        )
 
     def test_ignore_default_args_removes_automation(self):
         from src.browser.stealth import StealthConfig
