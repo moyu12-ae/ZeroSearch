@@ -51,7 +51,6 @@ class StealthConfig:
     browser_args: list = field(default_factory=lambda: [
         "--disable-blink-features=AutomationControlled",
         "--disable-dev-shm-usage",
-        "--no-sandbox",
         "--no-first-run",
         "--no-default-browser-check",
         "--lang=en",
