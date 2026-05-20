@@ -1,23 +1,22 @@
 """
-BrowserFactory — Camoufox 浏览器实例工厂
+BrowserFactory — Patchright 浏览器实例工厂
 
-使用 Camoufox (Firefox) 引擎替代原 Patchright。
-接口对齐 browser-engine.md §6.1 操作契约。
+使用 Patchright (undetected Chromium) 替代 Camoufox。
+接口对齐 Architecture v2 §2.1 BrowserEngine 操作契约。
 """
 
 import os
-from contextlib import redirect_stderr
+import json
+import shutil
 from pathlib import Path
 from typing import Optional
 
-_CAMOUFOX_AVAILABLE = False
+_PATCHRIGHT_AVAILABLE = False
 try:
-    from playwright.sync_api import sync_playwright, BrowserContext, Page
-    from camoufox.sync_api import NewBrowser
-    _CAMOUFOX_AVAILABLE = True
+    from patchright.sync_api import sync_playwright, BrowserContext, Page
+    _PATCHRIGHT_AVAILABLE = True
 except ImportError:
     sync_playwright = None
-    NewBrowser = None
     BrowserContext = None
     Page = None
 
@@ -28,22 +27,26 @@ from .stealth import StealthConfig
 class BrowserLaunchError(Exception):
     """浏览器启动失败"""
 
+    def __init__(self, message: str, exit_code: int = 1):
+        super().__init__(message)
+        self.exit_code = exit_code
+
 
 class BrowserFactory:
-    """Camoufox 浏览器实例工厂
+    """Patchright 浏览器实例工厂
 
-    使用 Playwright sync_api + Camoufox NewBrowser 启动 Firefox，
-    提供持久化 Profile 支持。
+    使用 Playwright sync_api + Patchright chromium.launch_persistent_context。
+    默认有头模式（可见窗口），通过 Chromium 自动继承系统代理。
     """
 
     def __init__(
         self,
-        headless: bool = True,
+        headless: bool = False,  # v0.2: 默认有头
         profile_dir: Optional[Path] = None,
     ):
-        if not _CAMOUFOX_AVAILABLE:
+        if not _PATCHRIGHT_AVAILABLE:
             raise BrowserLaunchError(
-                "Camoufox not found. Run: git submodule update --init"
+                "Patchright not found. Run: pip install patchright"
             )
         self._headless = headless
         self._profile = ProfileManager(profile_dir)
@@ -56,10 +59,10 @@ class BrowserFactory:
         return self._profile
 
     def get_context(self) -> BrowserContext:
-        """获取浏览器上下文。首次调用启动 Firefox，后续复用。
+        """获取浏览器上下文。首次调用启动 Chrome，后续复用。
 
         Returns:
-            Camoufox BrowserContext（底层为 Firefox 浏览器）
+            Patchright BrowserContext（底层为真 Chrome）
         """
         if self._context is not None:
             try:
@@ -71,20 +74,80 @@ class BrowserFactory:
         try:
             profile_path = self._profile.ensure_profile()
 
+            # 写入英文语言偏好 (借鉴原版 google-ai-mode-skill)
+            self._write_language_prefs(profile_path)
+
             self._playwright = sync_playwright().start()
-            with open(os.devnull, 'w') as devnull, redirect_stderr(devnull):
-                self._context = NewBrowser(
-                    self._playwright,
-                    headless=self._headless,
-                    persistent_context=True,
-                    user_data_dir=str(profile_path),
-                    **self._stealth.to_context_kwargs(),
-                )
+
+            launch_kwargs = {
+                "channel": "chrome",
+                "headless": self._headless,
+                "user_data_dir": str(profile_path),
+                "args": self._stealth.browser_args,
+                "ignore_default_args": self._stealth.ignore_default_args,
+                "no_viewport": False,
+                "accept_downloads": False,
+            }
+            launch_kwargs.update(self._stealth.to_context_kwargs())
+
+            self._context = self._playwright.chromium.launch_persistent_context(
+                **launch_kwargs
+            )
             return self._context
         except Exception as e:
+            # Chrome Profile 锁定检测
+            msg = str(e).lower()
+            if "profile" in msg and ("lock" in msg or "use" in msg or "already" in msg):
+                raise BrowserLaunchError(
+                    "Chrome Profile 已被锁定。请先关闭所有 Chrome 窗口，"
+                    "或使用 --fresh-profile 切换到独立 Profile。",
+                    exit_code=5,
+                ) from e
             raise BrowserLaunchError(
-                f"Failed to launch Camoufox browser: {e}"
+                f"Failed to launch Chrome browser: {e}"
             ) from e
+
+    def _write_language_prefs(self, profile_path: Path) -> None:
+        """写入英文语言偏好到 Chrome Profile。
+
+        借鉴原版 google-ai-mode-skill 的做法：
+        1. 写入 "Local State" 文件（app_locale + accept_languages）
+        2. 写入 "Default/Preferences" 文件（详细语言配置）
+        """
+        # 1. Local State
+        local_state_path = profile_path / "Local State"
+        local_state = {}
+        if local_state_path.exists():
+            try:
+                local_state = json.loads(local_state_path.read_text())
+            except (json.JSONDecodeError, IOError):
+                pass
+        local_state.setdefault("app_locale", "en")
+        local_state.setdefault("accept_languages", "en-US,en")
+        try:
+            local_state_path.write_text(json.dumps(local_state, indent=2))
+        except (IOError, OSError):
+            pass
+
+        # 2. Default/Preferences
+        default_dir = profile_path / "Default"
+        default_dir.mkdir(parents=True, exist_ok=True)
+        prefs_path = default_dir / "Preferences"
+        prefs = {}
+        if prefs_path.exists():
+            try:
+                prefs = json.loads(prefs_path.read_text())
+            except (json.JSONDecodeError, IOError):
+                pass
+        prefs.setdefault("accept_languages", "en-US,en")
+        prefs.setdefault("selected_languages", "en-US,en")
+        prefs.setdefault("intl", {}).setdefault("accept_languages", "en-US,en")
+        prefs.setdefault("intl", {}).setdefault("selected_languages", "en-US,en")
+        prefs.setdefault("translate", {}).setdefault("enabled", False)
+        try:
+            prefs_path.write_text(json.dumps(prefs, indent=2))
+        except (IOError, OSError):
+            pass
 
     def navigate(self, url: str) -> None:
         """导航到目标 URL

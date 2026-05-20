@@ -1,8 +1,8 @@
 """
-浏览器上下文管理器 — 预热常驻状态机
+浏览器上下文管理器 — 冷启动状态机
 
-对齐 browser-engine.md §5 状态机设计。
-COLD → WARMING → READY → STALE → DEAD
+对齐 Architecture v2 §2.1 BrowserEngine。
+状态机: COLD → WARMING → READY → STALE → DEAD
 """
 
 import time
@@ -25,7 +25,7 @@ class BrowserState(Enum):
 class BrowserContext:
     """浏览器实例上下文
 
-    持有 Camoufox 进程引用、Page 对象、状态机逻辑。
+    持有 Patchright Chromium 进程引用、Page 对象、状态机逻辑。
     向上层 SearchEngine 暴露统一的 get_context() / navigate() / shutdown() 接口。
     """
 
@@ -33,7 +33,7 @@ class BrowserContext:
 
     def __init__(
         self,
-        headless: bool = True,
+        headless: bool = False,  # v0.2: 默认有头
         profile_dir: Optional[Path] = None,
     ):
         self._state = BrowserState.COLD
@@ -52,10 +52,10 @@ class BrowserContext:
         return self._factory.profile
 
     def get_context(self):
-        """获取就绪的浏览器上下文。首次调用启动 Firefox，后续复用。
+        """获取就绪的浏览器上下文。首次调用启动 Chrome，后续复用。
 
         Returns:
-            Camoufox BrowserContext
+            Patchright BrowserContext
         """
         if self._state == BrowserState.READY:
             if self._health_check():
@@ -76,15 +76,11 @@ class BrowserContext:
             self._cleanup()
             self._state = BrowserState.COLD
 
-        # COLD → WARMING → READY
         return self._cold_start()
 
     def navigate(self, url: str) -> None:
         """导航到目标 URL"""
         self._factory.navigate(url)
-
-    # wait_for_ai() removed — unified in src/extractor/ai_detector.py
-    # See CH-04 in .anws/v1/07_CHALLENGE_REPORT.md
 
     def shutdown(self) -> None:
         """优雅关闭浏览器，释放资源"""
@@ -95,7 +91,7 @@ class BrowserContext:
         """检查浏览器健康状态
 
         Returns:
-            {status: str, pid: int|None, uptime_seconds: float, state: str}
+            {status: str, state: str, uptime_seconds: float}
         """
         status = "healthy" if self._health_check() else "unhealthy"
         return {
