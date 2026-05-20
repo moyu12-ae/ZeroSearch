@@ -1,133 +1,134 @@
 ---
 name: zerosearch
-description: Use this skill whenever the user needs current information, documentation, coding examples, or web research beyond the knowledge cutoff. Uses Camoufox (Firefox anti-fingerprinting browser) to query Google AI Mode (udm=50) for AI-synthesized overviews from 100+ sources with citations. Returns structured markdown with source citations. Trigger when user mentions web research, current events, latest docs, API references, technical comparisons, "search for", "look up", or asks about anything post-2025.
+description: Use this skill whenever the user needs current information, documentation, coding examples, or web research beyond the knowledge cutoff. Uses Patchright (undetected Chromium) to query Google AI Mode (udm=50) for AI-synthesized overviews with source citations. Returns compact, token-efficient Markdown designed for AI consumption. Trigger when user mentions web research, current events, latest docs, API references, technical comparisons, "search for", "look up", or asks about anything post-2025.
 ---
 
-# ZeroSearch
+# ZeroSearch v0.2
 
-Camoufox-powered web research skill. Uses Firefox anti-fingerprinting browser to query Google AI Mode (`udm=50`) for AI-synthesized overviews with source citations.
+Patchright-powered web research skill. Uses undetected Chromium (CDP-level anti-detection) to query Google AI Mode (`udm=50`) for AI-synthesized overviews with source citations.
 
-## When to Use This Skill
+## First Run: Profile Setup
 
-**Always trigger** when the user needs information you don't have or can't verify from training data alone:
+On first use, ZeroSearch checks if `~/.cache/zerosearch/profile_config.json` exists. If not, use `AskUserQuestion` to let the user choose:
 
-- Current information beyond your knowledge cutoff
-- Documentation or API references for libraries/frameworks (especially latest versions)
-- Coding examples or implementation patterns you're unsure about
-- Technical comparisons requiring real benchmark data
-- Research requiring verifiable citations and sources
-- Any question where "I think" isn't good enough — verify against live sources
+```
+AskUserQuestion:
+  header: "浏览器 Profile"
+  question: "选择浏览器 Profile 模式"
+  options:
+    A (推荐): "复用 Chrome Profile — 继承 Google 登录，CAPTCHA 几乎零触发"
+    B: "独立空白 Profile — 与日常隔离，隐私安全"
+```
+
+- **Option A**: Save `{"profile": "chrome"}` to `~/.cache/zerosearch/profile_config.json`
+- **Option B**: Save `{"profile": "fresh"}` to `~/.cache/zerosearch/profile_config.json`
+
+If Chrome is running when Option A is selected, warn the user to close Chrome first, then retry.
+
+Use `--reconfigure` to re-trigger this choice at any time.
 
 ## How It Works
 
-ZeroSearch launches Camoufox (Firefox v135+ with anti-fingerprinting) for each search, navigates to Google AI Mode (`udm=50`), extracts the AI-synthesized overview and source citations, converts to structured markdown, then shuts down the browser.
+ZeroSearch launches a visible Chromium window via Patchright for each search, navigates to Google AI Mode, extracts the AI-synthesized overview and citations, converts to compact Markdown, then shuts down.
 
 ```
-Camoufox Firefox → Google AI Mode (udm=50) → AI Content Extraction → Markdown + Footnotes
+AskUserQuestion (first run) → Chrome + Patchright → Google AI Mode (udm=50) → Extraction → Compact Markdown
 ```
 
-For research that doesn't need Google's AI synthesis (official docs, GitHub repos, regulatory texts), prefer **WebFetch** or direct navigation to authoritative sources.
+## Usage
 
-## CLI Usage
+### Step 1: Read profile config
 
 ```bash
-python src/search/run.py --query "your optimized query" --save --debug
+cat ~/.cache/zerosearch/profile_config.json 2>/dev/null || echo "not found"
 ```
 
-| Flag | Required | Description |
-|------|:--:|------|
-| `--query`, `-q` | Yes | Search query string |
-| `--save` | No | Save results to `results/` directory |
-| `--debug` | No | Print per-stage timing breakdown |
-| `--show-browser` | No | Show browser window for manual CAPTCHA solving |
+If "not found" → trigger AskUserQuestion flow above. Profile path mapping:
+
+| Config value | Path |
+|-------------|------|
+| `{"profile": "chrome"}` | `~/Library/Application Support/Google/Chrome/` |
+| `{"profile": "fresh"}` | `~/.cache/zerosearch/chrome_profile/` |
+
+### Step 2: Run search
 
 ```bash
-python src/search/run.py --query "React hooks 2026" --save --debug
-python src/search/run.py --query "some query" --show-browser  # For CAPTCHA solving
+cd ~/.claude/skills/zerosearch
+source .venv/bin/activate
+python src/search/run.py --query "<optimized query>" --profile <profile_path> --save
 ```
+
+Add `--debug` for per-stage timing breakdown.
+
+Add `--reconfigure` to re-trigger Profile setup.
+
+### Profile Locking
+
+If using real Chrome Profile and Chrome is already running → Patchright fails with exit code 5. Tell the user: "Chrome 正在运行，请先关闭 Chrome 再重试。" Suggest switching to Option B with `--fresh-profile`.
 
 ## Query Optimization
 
-Always optimize queries before executing search. Specificity determines result quality.
+Always optimize queries before executing. Specificity determines result quality.
 
-**Template**: `[Technology/Topic] [Version] [Year] ([Aspect 1], [Aspect 2], [Aspect 3]). [Output format request].`
+**Template**: `[Topic] [Key aspects]. [Output preference].`
 
 | User Query | Optimized Query |
 |-----------|----------------|
-| "React hooks" | "React hooks best practices 2026 (useState, useEffect, custom hooks, common pitfalls). Provide code examples." |
-| "Bun vs Node speed" | "Bun vs Node.js performance comparison 2026 (cold start time, HTTP throughput req/s, memory usage). Provide benchmark data and sources." |
-| "EU AI rules" | "EU AI Act requirements 2026 for SaaS startups (risk classification, compliance steps, penalties). Include official EU sources." |
+| "React hooks" | "React hooks best practices 2026 (useState, useEffect, custom hooks). Code examples." |
+| "Bun vs Node" | "Bun vs Node.js performance 2026 (cold start, throughput, memory). With benchmarks." |
 
 ## First-Time Setup
 
-The project uses a Camoufox git submodule. Clone with:
-
 ```bash
-git clone --recurse-submodules https://github.com/moyu12-ae/ZeroSearch.git ~/.claude/skills/zerosearch
+git clone https://github.com/moyu12-ae/ZeroSearch.git ~/.claude/skills/zerosearch
 cd ~/.claude/skills/zerosearch
-./setup.sh
+bash setup.sh
 ```
 
-Or after a normal clone:
-```bash
-git submodule update --init --recursive
-./setup.sh
-```
-
-**Technical Requirements**: Python 3.8+, Camoufox v135+ (Firefox-based, auto-installed via `python -m camoufox fetch`).
+**Requirements**: Python ≥3.10, macOS (Chrome auto-inherits system proxy).
 
 ## CAPTCHA Handling
 
-Camoufox's anti-fingerprinting + persistent browser Profile minimizes CAPTCHAs. If triggered:
+With real Chrome Profile (Option A) + Google login → CAPTCHA rate <1%.
 
-- **Headless mode**: Script returns exit code 2 with CAPTCHA_REQUIRED message
-- **Manual solve**: Re-run with `--show-browser`, solve CAPTCHA in the browser window
-- **After first solve**: Persistent Profile preserves session, future searches skip CAPTCHA
-- **If persistent**: Delete `~/.cache/zerosearch/firefox_profile/` to reset
+If CAPTCHA appears:
+- Browser window stays open → manually solve in the window
+- After solving, press Ctrl+C in terminal to continue extraction
+- Profile remembers the session, subsequent searches skip CAPTCHA
 
 ## Output Format
 
-Structured markdown with inline citations:
+Compact, token-efficient Markdown with inline citations:
 
 ```markdown
-React 19 introduces Server Components for zero-bundle-size server rendering[1],
+React 19 introduces Server Components for zero-bundle-size rendering[1],
 and Server Actions for type-safe client-server communication[2].
 
 ---
-
-## Sources:
-
-[1] React Server Components Documentation
-https://react.dev/reference/rsc/server-components
-
-[2] Server Actions and Mutations
-https://react.dev/reference/rsc/server-actions
+## Sources
+[1] React Server Components — https://react.dev/reference/rsc/server-components
+[2] Server Actions — https://react.dev/reference/rsc/server-actions
 ```
+
+## Exit Codes
+
+| Code | Meaning |
+|:----:|---------|
+| 0 | Success |
+| 1 | General error |
+| 2 | CAPTCHA triggered |
+| 3 | Browser closed |
+| 4 | AI Mode unavailable |
+| 5 | Chrome Profile locked (close Chrome first) |
+| 130 | User interrupted |
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| `libs/camoufox/` empty | `git submodule update --init --recursive` |
-| Camoufox not found | `python -m camoufox fetch` |
-| AI Mode not available | Your region doesn't support Google AI Mode. Use VPN to US/UK, or fall back to WebFetch for direct source access |
-| Profile corrupted | Delete `~/.cache/zerosearch/firefox_profile/` |
-| CAPTCHA every search | Profile may be stale — delete and re-solve once with `--show-browser` |
-
-**Exit Codes:**
-- `0` — Success
-- `1` — General error
-- `2` — CAPTCHA required (use `--show-browser`)
-- `3` — Browser closed by user
-- `4` — AI Mode unavailable in region
-- `130` — User interrupted
-
-## Best Practices
-
-1. **Optimize queries before search** — specificity = quality
-2. **Cross-verify across sources** — never rely on a single page
-3. **Preserve source URLs** — every claim must be traceable
-4. **Be transparent about limitations** — note when information couldn't be verified
-5. **Use `--debug` for performance issues** — reveals which stage is slow
-6. **Clone with `--recurse-submodules`** — avoids missing Camoufox dependency
-7. **Fall back to WebFetch** — when Google AI Mode is unavailable, navigate directly to official docs
+| Patchright not found | Re-run `bash setup.sh` |
+| Chrome not installed | `source .venv/bin/activate && python -m patchright install chrome` |
+| AI Mode unavailable | Use VPN to US/UK, or fall back to WebFetch |
+| Chrome Profile locked | Close all Chrome windows and retry; or use `--fresh-profile` |
+| Profile corrupted | `rm -rf ~/.cache/zerosearch/chrome_profile/` |
+| CAPTCHA every search | Switch to Option A (real Chrome Profile) via `--reconfigure` |

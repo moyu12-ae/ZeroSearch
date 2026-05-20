@@ -73,13 +73,13 @@
 
 ## 📍 当前状态 (由 Workflow 自动更新)
 
-- **最新架构版本**: `.anws/v1`
-- **活动任务清单**: [05_TASKS.md](.anws/v1/05_TASKS.md) ✅ 全部完成 (25/25)
-- **待办任务数**: 0
-- **最近一次更新**: `2026-05-19`
+- **最新架构版本**: `.anws/v2`
+- **活动任务清单**: [05_TASKS.md](.anws/v2/05_TASKS.md) — 13 任务, 3 Sprint
+- **待办任务数**: 13 (0/13 完成)
+- **最近一次更新**: `2026-05-20`
 
-### 🌊 Wave 6 ✅ — 收尾验证 + 文档 (SKILL.md + 集成测试 + 性能)
-T5.3.1, INT-S1, INT-S2, INT-S3, T6.2.1, T6.2.2, T6.2.3
+### 🌊 Wave 1 — Sprint 1: 基础设施 + SKILL.md
+T1.1.1, T1.1.2, T1.2.1, T1.3.1
 
 ---
 
@@ -91,20 +91,17 @@ zerosearch/                        # 仓库根 = Skill 部署位置
 ├── README.md                      # 项目说明
 ├── AGENTS.md                      # AI 协作协议
 ├── LICENSE                        # MIT 许可证
-├── setup.sh                       # 首次安装脚本
-├── requirements.txt               # Python 依赖
+├── setup.sh                       # 首次安装脚本 (pip + patchright install chrome)
+├── requirements.txt               # Python 依赖 (patchright>=1.55,<2)
 ├── .gitignore
-├── .gitmodules                    # Camoufox submodule 声明
-├── libs/
-│   └── camoufox/                  # Camoufox (Git Submodule)
 ├── src/
-│   ├── browser/                   # BrowserEngine
+│   ├── browser/                   # BrowserEngine (Patchright + Chrome)
 │   ├── search/                    # SearchEngine
 │   ├── extractor/                 # ContentExtractor
 │   └── converter/                 # MarkdownConverter
 ├── tests/                         # pytest 单元测试
 ├── results/                       # 搜索结果 (--save, 惰性创建)
-├── .anws/v1/                      # 架构文档 (当前版本)
+├── .anws/v2/                      # 架构文档 (当前版本)
 └── .claude/                       # Claude Code 工作流
 ```
 
@@ -112,37 +109,41 @@ zerosearch/                        # 仓库根 = Skill 部署位置
 
 ## 🧭 导航指南 (Navigation Guide)
 
-- **架构总览**: `.anws/v1/02_ARCHITECTURE_OVERVIEW.md`
-- **ADR**: `.anws/v1/03_ADR/` (跨系统决策的唯一记录源)
-- **详细设计**: `.anws/v1/04_SYSTEM_DESIGN/` ✅ (4 系统已完成)
-- **任务清单**: `.anws/v1/05_TASKS.md` ✅ (25/25 全部完成)
-- **BrowserEngine**: 源码 `src/browser/` → 设计 [browser-engine.md](.anws/v1/04_SYSTEM_DESIGN/browser-engine.md) ✅
-- **SearchEngine**: 源码 `src/search/` → 设计 [search-engine.md](.anws/v1/04_SYSTEM_DESIGN/search-engine.md) ✅
-- **ContentExtractor**: 源码 `src/extractor/` → 设计 [content-extractor.md](.anws/v1/04_SYSTEM_DESIGN/content-extractor.md) ✅
-- **MarkdownConverter**: 源码 `src/converter/` → 设计 [markdown-converter.md](.anws/v1/04_SYSTEM_DESIGN/markdown-converter.md) ✅
+- **架构总览**: `.anws/v2/02_ARCHITECTURE_OVERVIEW.md`
+- **ADR**: `.anws/v2/03_ADR/` (跨系统决策的唯一记录源)
+- **详细设计**: 待 `/design-system` 执行后更新
+- **任务清单**: 待 `/blueprint` 执行后更新
+
+### ADR ↔ SYSTEM_DESIGN 关系
+- **ADR** 记录跨系统决策 (如技术栈、认证方式)
+- **SYSTEM_DESIGN** §8 Trade-offs 引用 ADR,不复制决策内容
+- 修改 ADR 时,检查"影响范围"章节,确认引用该 ADR 的系统
 
 ---
 
 ### 技术栈决策
-- 语言: Python 3.8+
-- 浏览器引擎: Camoufox (Firefox 133+)，Git Submodule 管理
+- 语言: Python ≥3.10
+- 浏览器引擎: Patchright (Chromium undetected fork)，pip 安装
+- 反检测: CDP 协议级 (Runtime.enable / Console.enable 补丁)
 - HTML 解析: BeautifulSoup4
 - Markdown 转换: html-to-markdown (主) → markdownify (备) → html2text (保底)
 - 缓存: collections.OrderedDict + TTL
 
 ### 系统边界
-- **BrowserEngine**: Camoufox 浏览器生命周期、Profile 持久化、反检测配置
+- **BrowserEngine**: Patchright Chrome 生命周期、Profile 持久化、反检测配置、系统代理自动继承
 - **SearchEngine**: 搜索全流程编排、LRU 缓存、分级错误降级
-- **ContentExtractor**: AI 完成检测、多语言引用提取、DOM 清洗
+- **ContentExtractor**: AI 完成检测、多语言引用提取、DOM 清洗、AI 原生精简
 - **MarkdownConverter**: HTML→Markdown、脚注格式化、文件保存
 
 ### 活跃 ADR
-- **ADR-001**: 浏览器引擎选型 — Camoufox (总分 51/60 vs Patchright 36/60)
-- **ADR-002**: Camoufox 集成方式 — Git Submodule (精确版本锁定 + 即时上游更新)
-- **ADR-003**: 测试策略 — E2E 集成测试为主 + 单元测试为辅，无 CI
+- **ADR-001 (v2)**: 浏览器引擎选型 — Patchright + 真 Chrome (227/240 vs Camoufox 141/240)
 
 ### 当前任务状态
-- [由 blueprint/forge 自动更新]
+- 任务清单: .anws/v2/05_TASKS.md
+- 总任务数: 13, P0: 8, P1: 4, P2: 1
+- Sprint 数: 3
+- Wave 1 建议: T1.1.1, T1.1.2, T1.2.1, T1.3.1
+- 最近更新: 2026-05-20
 
 <!-- AUTO:END -->
 
