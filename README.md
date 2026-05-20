@@ -18,7 +18,27 @@ Powered by **Patchright** (undetected Chromium — CDP-level anti-detection)
 
 一个 Claude Code Skill，将 Google AI Mode（`udm=50`）搜索能力直接集成到 Claude Code 中。不同于普通搜索返回 10 个蓝色链接，Google AI Mode 自动综合 100+ 个网站内容，生成带来源引用的结构化回答。
 
-**v0.2 亮点**：Patchright Chromium 引擎（CDP 协议级反检测）、真 Chrome Profile 复用（Google 登录继承）、系统代理自动继承、AI 原生精简输出。
+**v0.2 亮点**：Patchright Chromium 引擎（CDP 协议级反检测）、始终有头模式（低 CAPTCHA）、系统代理自动继承、AI 原生精简输出、LRU 缓存、分级错误降级。
+
+---
+
+## 相比原版的优势
+
+| 维度 | 原版 google-ai-mode-skill | ZeroSearch v0.2 |
+|------|--------------------------|-----------------|
+| **浏览器引擎** | Patchright + Chrome | Patchright + Chrome |
+| **默认模式** | 无头 (headless) | **始终有头** (可见窗口，CAPTCHA 更少) |
+| **反检测** | `--disable-blink-features` | CDP 协议级 + 语言强制英文 + StealthUtils |
+| **缓存** | 无 | **LRU 50条 + TTL 5分钟**，重复查询 <1ms |
+| **错误处理** | 无结构化降级 | **6 级退出码** + CAPTCHA/超时/AI不可用分级降级 |
+| **输出** | 基础 Markdown + 引用 | **AI 原生精简**：90+ 模式去噪（中/英/日文）+ 紧凑脚注 |
+| **首次体验** | 无引导 | **AskUserQuestion** 引导设为默认搜索工具 |
+| **工作区集成** | 手动配置 | setup.sh **自动注册** CLAUDE.md 搜索策略 |
+| **测试** | 未知 | **29 自动化测试**，回归安全 |
+| **架构文档** | 无 | 完整 PRD + ADR + 系统设计（.anws/v2/） |
+| **CAPTCHA** | 手动切 `--show-browser` | 默认有头，`Ctrl+C` 继续，不切模式 |
+
+> 原版 google-ai-mode-skill 是"能用"的 MVP，ZeroSearch v0.2 是**工程化的完整产品**——性能相当（~5s），但可靠性、可维护性、AI 消费效率全面领先。
 
 ---
 
