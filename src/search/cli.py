@@ -39,7 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
         配置好的 argparse.ArgumentParser 实例
     """
     parser = argparse.ArgumentParser(
-        description="Google AI Mode Search — 通过 Camoufox 浏览器执行 Google AI Mode 搜索",
+        description="ZeroSearch — Patchright Chromium Google AI Mode 搜索",
     )
     parser.add_argument(
         "--query",
