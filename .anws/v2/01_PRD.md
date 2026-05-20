@@ -121,39 +121,24 @@ ZeroSearch v0.2 将底层浏览器引擎从 Camoufox (Firefox) 迁移到 Patchri
 
 ---
 
-### [REQ-008] P0 — 首次运行交互式 Profile 选择（AskUserQuestion）
+### [REQ-008] P1 — 独立 Chrome Profile
 
-**As a** 开发者, **I want** to choose on first run whether to use my real Chrome profile or a fresh one, via Claude Code's native AskUserQuestion interface, **so that** I have control over privacy vs convenience with a polished UX.
+**As a** 开发者, **I want** ZeroSearch to use an independent Chrome profile separate from my daily Chrome, **so that** my personal browsing data stays isolated while automation works reliably.
+
+> **设计决策**: Chrome 禁止在默认 Profile 目录（`~/Library/Application Support/Google/Chrome/`）上开启 DevTools 远程调试。Patchright 依赖 CDP 协议，因此无法复用真实 Chrome Profile。统一使用独立 Profile `~/.cache/zerosearch/chrome_profile/`。
 
 **验收标准**：
-- **Given** 首次使用 `/zerosearch` 或首次运行搜索
-- **When** SKILL.md 检测到 Profile 配置文件不存在
-- **Then** Claude 调用 `AskUserQuestion` 显示选项：
-  - **Header**: "浏览器 Profile"
-  - **A) 复用 Chrome Profile** (推荐) — 继承 Google 登录，CAPTCHA 几乎零触发
-  - **B) 独立空白 Profile** — 与日常隔离，隐私安全
-- **And** 用户选择后，结果写入 `~/.cache/zerosearch/profile_config.json`
-- **And** 后续调用直接读取配置，不再询问
-- **And** `/zerosearch --reconfigure` 可重新触发选择
-
-**实现说明**：
-- SKILL.md 中描述 Profile 选择流程
-- Python CLI 接受 `--profile <path>` 参数（由 SKILL.md 传递）
-- 不在 Python 代码中实现交互式选择
-
-**选项说明**：
-
-| 选项 | Profile 路径 | 优势 | 劣势 |
-|------|-------------|------|------|
-| **A: 复用 Chrome** | `~/Library/Application Support/Google/Chrome/` | 已登录 Google，CAPTCHA ≈ 0 | 需关闭正在运行的 Chrome |
-| **B: 独立 Profile** | `~/.cache/zerosearch/chrome_profile/` | 与日常隔离 | 首次需手动登录/过 CAPTCHA |
+- **Given** 首次搜索或已搜索过
+- **When** BrowserEngine 启动
+- **Then** 使用独立 Profile `~/.cache/zerosearch/chrome_profile/`
+- **And** 不与用户日常 Chrome Profile 冲突
+- **And** Profile cookie/session 跨搜索持久化
 
 **边界情况**：
-- 选 A 但 Chrome 正在运行 → 提示"请先关闭 Chrome"并重试
-- 选 A 但 Chrome 未安装 → 自动降级到 B
-- 选 B → 首次搜索弹出 Chrome 窗口，用户可手动登录 Google
+- Profile 损坏 → 自动备份并重建
+- 用户想重置 → `rm -rf ~/.cache/zerosearch/chrome_profile/`
 
-**涉及系统**: SKILL.md, BrowserEngine
+**涉及系统**: BrowserEngine
 
 ---
 
@@ -248,8 +233,8 @@ ZeroSearch v0.2 将底层浏览器引擎从 Camoufox (Firefox) 迁移到 Patchri
 | 性能 | 冷启动到导航完成 | ≤5s |
 | 性能 | 搜索全流程（启动→输出） | ≤15s |
 | 性能 | 缓存命中 | <1ms |
-| 可靠性 | CAPTCHA 触发率 — Option A (真实 Chrome, 已登录) | <1% |
-| 可靠性 | CAPTCHA 触发率 — Option B (独立 Profile, 未登录) | <10% |
+| 可靠性 | CAPTCHA 触发率（独立 Profile，未登录） | <10% |
+| 可靠性 | CAPTCHA 触发率（登录 Google 后） | <1% |
 | 可靠性 | 崩溃恢复 | 下次搜索自动重建 Profile |
 | 可维护性 | 底层升级命令 | `pip install --upgrade patchright` |
 | 可维护性 | 安装命令数 | ≤3 步（clone → setup.sh 一条龙） |

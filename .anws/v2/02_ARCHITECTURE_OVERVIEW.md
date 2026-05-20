@@ -53,37 +53,25 @@ graph TD
 
 **职责**:
 - 接收 Claude Code `/zerosearch` 触发，解析查询参数
-- 首次运行检测 `~/.cache/zerosearch/profile_config.json` 是否存在
-  - 不存在 → 调用 `AskUserQuestion` 让用户选择 Profile 模式（A/B）
-  - 将选择结果写入 `profile_config.json`
-- 将 `--profile <path>` 参数传递给 Python CLI
-- `--reconfigure` flag 重新触发 Profile 选择
+- 首次运行调用 `AskUserQuestion`："是否将 ZeroSearch 设为默认搜索工具？"
+  - Yes → 在 CLAUDE.md 中注册搜索策略
+  - No → 跳过注册
+- 将查询转发给 Python CLI
 
 **AskUserQuestion 交互协议**:
 
 | 字段 | 值 |
 |------|-----|
-| **Header** | "浏览器 Profile" |
-| **Option A** | 复用 Chrome Profile (推荐) — 继承 Google 登录，CAPTCHA 几乎零触发 |
-| **Option B** | 独立空白 Profile — 与日常隔离，隐私安全 |
-| **保存位置** | `~/.cache/zerosearch/profile_config.json` |
-
-**Option A → Profile 路径映射**:
-```
-~/Library/Application Support/Google/Chrome/   → macOS Chrome Default Profile
-```
-
-**Option B → Profile 路径映射**:
-```
-~/.cache/zerosearch/chrome_profile/             → 独立空白 Profile
-```
+| **Header** | "默认搜索" |
+| **Yes** | 写入 CLAUDE.md 搜索策略，AI 优先使用 ZeroSearch |
+| **No** | 不修改配置，手动通过 /zerosearch 触发 |
 
 **边界**:
-- **输入**: `/zerosearch <query>` + `[--reconfigure]`
-- **输出**: `python src/search/run.py --query "..." --profile <path> [--debug]`
-- **依赖**: `AskUserQuestion` (Claude Code 工具), 文件系统
+- **输入**: `/zerosearch <query>`
+- **输出**: `python src/search/run.py --query "..." [--save] [--debug]`
+- **依赖**: `AskUserQuestion` (Claude Code 工具)
 
-**关联需求**: [REQ-008], [REQ-009]
+**关联需求**: [REQ-009]
 
 **文件**: `SKILL.md`
 
@@ -105,10 +93,9 @@ graph TD
 - `detect_system_proxy()` 移除（Chromium 自动继承系统代理）
 - 新增 `channel="chrome"` + Profile 文件写入（Local State / Preferences）
 - 新增人类行为模拟工具（StealthUtils）
-- Profile 目录（二选一，由 System 0 选择后记录在 `profile_config.json`）:
-  - **Option A**: `~/Library/Application Support/Google/Chrome/` — 复用用户真实 Chrome Profile
-  - **Option B**: `~/.cache/zerosearch/chrome_profile/` — 独立空白 Profile
-- Chrome Profile 锁定检测：Option A 且 Chrome 正在运行 → 报错退出 (exit 5)，提示关闭 Chrome
+- Profile 目录: `~/.cache/zerosearch/chrome_profile/` — 独立 Chrome Profile
+  - 与用户日常 Chrome 隔离，避免 Profile 锁定冲突
+  - Chrome 禁止在默认 Profile 目录上开启 DevTools 远程调试
 
 **边界**:
 - **输入**: `BrowserFactory.get_context(profile_path)` 调用

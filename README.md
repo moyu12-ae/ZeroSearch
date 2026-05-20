@@ -38,9 +38,7 @@ bash setup.sh
 # "/zerosearch React hooks 2026 best practices"
 ```
 
-首次运行时会通过 `AskUserQuestion` 让你选择 Profile 模式：
-- **Option A** (推荐): 复用真实 Chrome Profile，继承 Google 登录状态
-- **Option B**: 独立空白 Profile，与日常隔离
+首次运行时会通过 `AskUserQuestion` 询问是否设为默认搜索工具。搜索使用独立 Chrome Profile，与日常 Chrome 隔离。
 
 ---
 

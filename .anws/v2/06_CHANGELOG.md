@@ -29,3 +29,9 @@
 - [FIX] R1-M3: Architecture §2.2 更新 CLI flags 完整列表 + 退出码表
 - [FIX] R1-M4: PRD §7 增加 v1→v2 迁移步骤
 - [FIX] R1-L1: PRD §8 增加 BrowserEngine 集成测试计划 (test_browser_factory.py)
+
+## 2026-05-20 — Challenge R4 修复（层间一致性同步）
+
+- [FIX] R4-C1: PRD/Architecture/ADR 同步至单 Profile 模式（移除 Option A/B 描述）
+- [FIX] R4-H1: README "快速开始" 更新为单 AskUserQuestion 描述
+- [FIX] R4-M1: PRD CAPTCHA 率统一（移除 Option A/B 分开定义）
