@@ -9,23 +9,38 @@ Patchright-powered web research skill. Uses undetected Chromium (CDP-level anti-
 
 ## First Run: Profile Setup
 
-On first use, ZeroSearch checks if `~/.cache/zerosearch/profile_config.json` exists. If not, use `AskUserQuestion` to let the user choose:
+On first use, ZeroSearch checks if `~/.cache/zerosearch/profile_config.json` exists. If not, run two `AskUserQuestion` dialogs:
+
+### Question 1: Profile Mode
 
 ```
 AskUserQuestion:
   header: "浏览器 Profile"
   question: "选择浏览器 Profile 模式"
   options:
-    A (推荐): "复用 Chrome Profile — 继承 Google 登录，CAPTCHA 几乎零触发"
+    A (推荐): "复用 Chrome Profile — 继承 Google 登录，CAPTCHA 几乎零触发（如 Chrome 正在运行会自动关闭）"
     B: "独立空白 Profile — 与日常隔离，隐私安全"
 ```
 
 - **Option A**: Save `{"profile": "chrome"}` to `~/.cache/zerosearch/profile_config.json`
+  - 启动前自动关闭正在运行的 Chrome（通过 `osascript -e 'quit app "Google Chrome"'`）
 - **Option B**: Save `{"profile": "fresh"}` to `~/.cache/zerosearch/profile_config.json`
 
-If Chrome is running when Option A is selected, warn the user to close Chrome first, then retry.
+### Question 2: Default Search Tool
 
-Use `--reconfigure` to re-trigger this choice at any time.
+```
+AskUserQuestion:
+  header: "默认搜索"
+  question: "是否将 ZeroSearch 设为默认搜索工具？"
+  options:
+    Yes: "写入 CLAUDE.md/AGENTS.md 搜索策略，AI 优先使用 ZeroSearch"
+    No: "不修改配置，手动触发搜索"
+```
+
+- **Yes**: 在 CLAUDE.md 中注册 ZeroSearch 搜索策略（同 setup.sh REQ-009 逻辑）
+- **No**: 跳过注册
+
+Use `--reconfigure` to re-trigger both choices at any time.
 
 ## How It Works
 
