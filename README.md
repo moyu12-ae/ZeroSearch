@@ -144,15 +144,14 @@ zerosearch/
 |------|:--:|:--:|
 | 端到端搜索 (冷启动) | ≤5s | ~5s |
 | 缓存命中 | <1ms | <0.001ms |
-| CAPTCHA 触发率 (Option A) | <1% | Google 已登录用户 |
-| CAPTCHA 触发率 (Option B) | <10% | 未登录 |
+| CAPTCHA 触发率 (未登录) | <10% | 独立 Profile |
+| CAPTCHA 触发率 (已登录 Google) | <1% | 登录后几乎零触发 |
 
 ---
 
 ## CAPTCHA 处理
 
-- **Option A (推荐)**: 复用真实 Chrome Profile，已登录 Google → CAPTCHA 几乎零触发
-- **Option B**: 首次可能触发 CAPTCHA，浏览器窗口保持打开，手动验证后 Profile 记住
+ZeroSearch 使用独立 Chrome Profile（`~/.cache/zerosearch/chrome_profile/`）。首次搜索可能触发 CAPTCHA——浏览器窗口保持打开，手动验证后 Profile 记住登录状态，后续搜索 CAPTCHA 几乎零触发。
 
 ---
 

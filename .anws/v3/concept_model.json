@@ -1,0 +1,40 @@
+{
+  "glossary": {
+    "Chrome Daemon": "常驻 Chrome 进程，首次搜索冷启动后保持存活，后续搜索复用标签页。停止方式仅两种：`/zerosearch-stop` 命令或直接关闭 Chrome 窗口。不做自动超时关闭，不做会话结束检测。",
+    "冷启动": "Daemon 未运行时的首次浏览器启动，完整创建 Chrome 进程 + 加载 Profile，耗时 ~5s。",
+    "热搜索": "Daemon 已运行时的后续搜索，通过 CDP 连接已有 Chrome，创建新标签页 → 导航 → 提取 → 关闭标签页，耗时 <1s。",
+    "标签页复用": "Daemon 模式下，新搜索创建新标签页导航，完成后关闭标签页而非浏览器进程。",
+    "关闭窗口即停止": "用户可直接关闭可见的 Chrome 浏览器窗口来停止 Daemon。下次搜索时自动检测进程死亡并冷启动重建。"
+  },
+  "entities": [
+    { "name": "ChromeDaemon", "type": "服务", "necessity": "必须", "description": "常驻 Chrome 浏览器进程，管理浏览器生命周期和标签页复用。仅通过手动命令或关窗停止。" },
+    { "name": "DaemonState", "type": "值对象", "necessity": "必须", "description": "Daemon 状态文件 ~/.cache/zerosearch/daemon.json，包含 PID、CDP 端口、Profile 路径、启动时间" },
+    { "name": "TagPage", "type": "实体", "necessity": "必须", "description": "Chrome 中的一个标签页，Daemon 模式下搜索时创建，搜索完成后关闭" },
+    { "name": "BrowserContext", "type": "值对象", "necessity": "必须", "description": "Patchright BrowserContext 的封装，包含 Profile 路径和 CDP 连接状态" },
+    { "name": "SearchSession", "type": "实体", "necessity": "必须", "description": "一次搜索的完整生命周期：标签页创建 → 导航 → 提取 → 标签页关闭" },
+    { "name": "DaemonCommands", "type": "命令", "necessity": "可选", "description": "手动控制命令：/zerosearch-start（启动Daemon）、/zerosearch-stop（停止Daemon）。默认搜索时自动启动，手动命令为可选覆盖。" },
+    { "name": "LivenessCheck", "type": "策略", "necessity": "必须", "description": "每次搜索前检查：状态文件是否存在 → PID 是否存活 → CDP 端口是否响应。任一失败则降级为冷启动。" }
+  ],
+  "flows": [
+    { "from": "User/AI", "action": "触发搜索", "to": "SKILL.md", "data": "查询字符串", "trigger": "/zerosearch 或关键词" },
+    { "from": "SKILL.md", "action": "执行 LivenessCheck", "to": "ChromeDaemon", "data": "检查状态文件 + PID + CDP", "mode": "同步" },
+    { "from": "ChromeDaemon", "action": "未运行 → 冷启动", "to": "BrowserContext", "data": "新 Chrome 进程 + Profile", "mode": "~5s" },
+    { "from": "ChromeDaemon", "action": "已运行 → 热搜索", "to": "TagPage", "data": "CDP 连接 → 新标签页", "mode": "<1s" },
+    { "from": "TagPage", "action": "导航 → 提取 → 转换 → 关闭标签页", "to": "SearchResult", "data": "Markdown + 引用", "mode": "同步" },
+    { "from": "User", "action": "手动启动 Daemon", "to": "ChromeDaemon", "data": "无", "trigger": "/zerosearch-start" },
+    { "from": "User", "action": "手动停止 Daemon", "to": "ChromeDaemon", "data": "SIGTERM → 清理状态文件", "trigger": "/zerosearch-stop" },
+    { "from": "User", "action": "直接关闭浏览器窗口", "to": "ChromeDaemon", "data": "进程终止 → PID 失效", "trigger": "手动关窗/Cmd+Q" },
+    { "from": "ChromeDaemon", "action": "下次搜索检测到 PID 失效", "to": "BrowserContext", "data": "清理 stale 状态 → 冷启动", "mode": "自动降级" }
+  ],
+  "missing_components": [
+    { "component": "Daemon 存活检测", "category": "可靠性", "priority": "高", "reason": "Chrome 可能被用户手动关闭窗口，需检测进程存活并自动重建（降级为冷启动）" },
+    { "component": "Daemon 状态指示", "category": "UX", "priority": "中", "reason": "用户需感知 Daemon 是否在运行——stderr 输出 '[Daemon] 复用浏览器 (热搜索 <1s)' vs '[Daemon] 冷启动 Chrome...'" }
+  ],
+  "clarifications": [
+    { "question": "Chrome Daemon 的生命周期？", "answer": "常驻进程，仅手动停止（/zerosearch-stop 或关窗），不做自动超时关闭，不做会话结束检测" },
+    { "question": "v0.3 做 Plugin 化吗？", "answer": "不做 — 推迟到后续版本" },
+    { "question": "v0.3 做 Deep Research 和 Citation Crawler 吗？", "answer": "不做 — 只做 Chrome Daemon" },
+    { "question": "Daemon 启停控制方式？", "answer": "自动启动（首次搜索）+ 手动停止（命令或关窗），Crash 自动重建" },
+    { "question": "Daemon 自动关闭策略？", "answer": "不做任何自动关闭——无空闲超时、无会话结束检测。Chrome 持续运行直到用户主动停止。" }
+  ]
+}

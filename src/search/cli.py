@@ -41,13 +41,27 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="ZeroSearch — Patchright Chromium Google AI Mode 搜索",
     )
-    parser.add_argument(
+    # 动作组: --query / --start / --stop 互斥
+    action_group = parser.add_mutually_exclusive_group(required=True)
+    action_group.add_argument(
         "--query",
         "-q",
         type=str,
-        required=True,
-        help="搜索查询字符串 (必填)",
+        help="搜索查询字符串",
     )
+    action_group.add_argument(
+        "--start",
+        action="store_true",
+        default=False,
+        help="启动 Chrome Daemon（不搜索）",
+    )
+    action_group.add_argument(
+        "--stop",
+        action="store_true",
+        default=False,
+        help="停止 Chrome Daemon",
+    )
+
     parser.add_argument(
         "--save",
         action="store_true",
@@ -129,7 +143,43 @@ def main(argv: list[str] | None = None) -> int:
     # 确保项目根在 sys.path，支持绝对导入
     _setup_import_path()
 
-    # ── 尝试导入并调用 SearchEngine ─────────────────────────────────
+    # ── Daemon 管理命令 (--start / --stop) ─────────────────────────
+    if args.start or args.stop:
+        from src.browser.browser_factory import BrowserFactory
+
+        if args.start:
+            if BrowserFactory.daemon_is_alive():
+                print("[Daemon] Chrome 已在运行", file=sys.stderr)
+                return EXIT_SUCCESS
+            print("[Daemon] 正在启动 Chrome...", file=sys.stderr)
+            try:
+                factory = BrowserFactory(headless=False)
+                browser = factory.launch_daemon()
+                # 只启动不搜索：立即释放连接
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+                print("[Daemon] Chrome 已启动", file=sys.stderr)
+                return EXIT_SUCCESS
+            except Exception as e:
+                print(f"[Daemon] 启动失败: {e}", file=sys.stderr)
+                return EXIT_ERROR
+
+        if args.stop:
+            if not BrowserFactory.daemon_is_alive():
+                print("[Daemon] Chrome 未在运行", file=sys.stderr)
+                return EXIT_SUCCESS
+            print("[Daemon] 正在停止 Chrome...", file=sys.stderr)
+            try:
+                BrowserFactory.cleanup_daemon()
+                print("[Daemon] Chrome 已停止", file=sys.stderr)
+                return EXIT_SUCCESS
+            except Exception as e:
+                print(f"[Daemon] 停止失败: {e}", file=sys.stderr)
+                return EXIT_ERROR
+
+    # ── 搜索工作流 (--query) ────────────────────────────────────────
     try:
         from src.search.engine import SearchEngine
     except ImportError as exc:
@@ -139,7 +189,6 @@ def main(argv: list[str] | None = None) -> int:
         )
         return EXIT_ERROR
 
-    # ── 正常工作流 ───────────────────────────────────────────────────
     try:
         engine = SearchEngine(
             headless=False,  # v0.2: 始终有头
@@ -155,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
 
             return EXIT_SUCCESS
         finally:
-            engine.shutdown()  # 搜索完成后立即关闭浏览器
+            engine.shutdown()  # 搜索完成后释放资源 (不关闭 Daemon Chrome)
 
     except KeyboardInterrupt:
         logger.info("接收到用户中断信号 (SIGINT)")

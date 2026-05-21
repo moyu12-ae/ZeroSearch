@@ -27,7 +27,7 @@
 - [FIX] R1-M1: PRD §5 CAPTCHA 率分层定义 (Option A <1%, Option B <10%)
 - [FIX] R1-M2: PRD REQ-009 明确 CLAUDE.md 检测逻辑 (grep ZeroSearch, 备份, 路径优先级)
 - [FIX] R1-M3: Architecture §2.2 更新 CLI flags 完整列表 + 退出码表
-- [FIX] R1-M4: PRD §7 增加 v1→v2 迁移步骤
+- [FIX] R1-M4: PRD §7 增加 v0.1→v0.2 迁移步骤
 - [FIX] R1-L1: PRD §8 增加 BrowserEngine 集成测试计划 (test_browser_factory.py)
 
 ## 2026-05-20 — Challenge R4 修复（层间一致性同步）

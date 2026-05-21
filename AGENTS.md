@@ -65,6 +65,13 @@
 2. **显式上下文**: 决策写入 ADR，不留在"聊天记忆"里。
 3. **交叉验证**: 编码前对照 `05_TASKS.md`。我在做计划好的事吗？
 4. **美学**: 文档应该是美的。善用 Markdown 和 Emoji。
+5. **版本命名规范**: anws 架构版本号 (.anws/v1, v2, v3) 与产品版本号 (v0.1, v0.2, v0.3) 是两套独立体系。目录名/路径引用用 anws 版本号，文档内容中提软件时用产品版本号。
+
+   | anws 架构版 | 产品版 | 说明 |
+   |:--:|:--:|------|
+   | `.anws/v1/` | ZeroSearch v0.1 | Camoufox Firefox 引擎 |
+   | `.anws/v2/` | ZeroSearch v0.2 | Patchright Chromium 迁移 |
+   | `.anws/v3/` | ZeroSearch v0.3 | Chrome Daemon 常驻进程 |
 
 ---
 ## 🔄 项目状态保留区
@@ -73,13 +80,16 @@
 
 ## 📍 当前状态 (由 Workflow 自动更新)
 
-- **最新架构版本**: `.anws/v2`
-- **活动任务清单**: [05_TASKS.md](.anws/v2/05_TASKS.md) — 13 任务, 3 Sprint
+- **最新架构版本**: `.anws/v3`
+- **活动任务清单**: [05_TASKS.md](.anws/v3/05_TASKS.md) — 13 任务, 2 Sprint
 - **待办任务数**: 0 (13/13 全部完成)
-- **最近一次更新**: `2026-05-20`
+- **最近一次更新**: `2026-05-21`
 
-### 🌊 Wave 3 ✅ — Sprint 3: 管线适配 + 测试 (全部完成)
-T3.1.1, T3.1.2, T3.2.1, T3.2.2, T3.3.1, INT-S3
+### 🌊 Wave 1 ✅ — S1: Daemon 核心 (全部完成)
+T1.0.1, T1.1.1, T1.1.2, T1.2.1, T1.2.2, T1.3.1, T1.4.1, INT-S1
+
+### 🌊 Wave 2 ✅ — S2: 系统集成 (全部完成)
+T2.1.1, T2.2.1, T2.2.2, T0.1.1, INT-S2
 
 ---
 
@@ -95,13 +105,13 @@ zerosearch/                        # 仓库根 = Skill 部署位置
 ├── requirements.txt               # Python 依赖 (patchright>=1.55,<2)
 ├── .gitignore
 ├── src/
-│   ├── browser/                   # BrowserEngine (Patchright + Chrome)
+│   ├── browser/                   # BrowserEngine (Patchright + Chrome Daemon)
 │   ├── search/                    # SearchEngine
 │   ├── extractor/                 # ContentExtractor
 │   └── converter/                 # MarkdownConverter
 ├── tests/                         # pytest 单元测试
 ├── results/                       # 搜索结果 (--save, 惰性创建)
-├── .anws/v2/                      # 架构文档 (当前版本)
+├── .anws/v3/                      # 架构文档 (当前版本)
 └── .claude/                       # Claude Code 工作流
 ```
 
@@ -109,10 +119,10 @@ zerosearch/                        # 仓库根 = Skill 部署位置
 
 ## 🧭 导航指南 (Navigation Guide)
 
-- **架构总览**: `.anws/v2/02_ARCHITECTURE_OVERVIEW.md`
-- **ADR**: `.anws/v2/03_ADR/` (跨系统决策的唯一记录源)
-- **详细设计**: 待 `/design-system` 执行后更新
-- **任务清单**: 待 `/blueprint` 执行后更新
+- **架构总览**: `.anws/v3/02_ARCHITECTURE_OVERVIEW.md`
+- **ADR**: `.anws/v3/03_ADR/` (跨系统决策的唯一记录源)
+- **详细设计**: 待 `/design-system` 执行后更新 (将填充 `.anws/v3/04_SYSTEM_DESIGN/`)
+- **任务清单**: 待 `/blueprint` 执行后更新 (将生成 `.anws/v3/05_TASKS.md`)
 
 ### ADR ↔ SYSTEM_DESIGN 关系
 - **ADR** 记录跨系统决策 (如技术栈、认证方式)
@@ -128,23 +138,26 @@ zerosearch/                        # 仓库根 = Skill 部署位置
 - HTML 解析: BeautifulSoup4
 - Markdown 转换: html-to-markdown (主) → markdownify (备) → html2text (保底)
 - 缓存: collections.OrderedDict + TTL
+- Daemon 连接: connect_over_cdp (CDP WebSocket)，0 新依赖
 
 ### 系统边界
-- **BrowserEngine**: Patchright Chrome 生命周期、Profile 持久化、反检测配置、系统代理自动继承
-- **SearchEngine**: 搜索全流程编排、LRU 缓存、分级错误降级
+- **BrowserEngine**: Patchright Chrome 生命周期、Daemon 状态文件管理、冷启动/热连接双路径、反检测配置、系统代理自动继承
+- **SearchEngine**: 搜索全流程编排、Daemon 状态检测分支、LRU 缓存、分级错误降级
 - **ContentExtractor**: AI 完成检测、多语言引用提取、DOM 清洗、AI 原生精简
 - **MarkdownConverter**: HTML→Markdown、脚注格式化、文件保存
 
 ### 活跃 ADR
 - **ADR-001 (v2)**: 浏览器引擎选型 — Patchright + 真 Chrome (227/240 vs Camoufox 141/240)
+- **ADR-002 (v3)**: Chrome Daemon CDP 连接策略 — connect_over_cdp (233/240 vs Python Daemon 165/240)
 
 ### 当前任务状态
-- 任务清单: .anws/v2/05_TASKS.md
-- 总任务数: 13, P0: 8, P1: 4, P2: 1 — ✅ 全部完成 (29 tests pass)
-- Sprint 数: 3 — ✅ 全部完成
-- 最近更新: 2026-05-20
+- 任务清单: .anws/v3/05_TASKS.md
+- 总任务数: 13, P0: 6, P1: 4, P2: 1 — ✅ 全部完成 (45 tests pass)
+- Sprint 数: 2
+- Wave 1 建议: T1.0.1 (Spike), T1.1.1, T1.1.2, T1.2.1
+- 最近更新: 2026-05-21
 
 <!-- AUTO:END -->
 
 ---
-> **状态自检**: /genesis 完成！运行 `/design-system` 或 `/blueprint` 继续。
+> **状态自检**: /genesis Step 6 完成！运行 `/design-system` 或 `/blueprint` 继续。

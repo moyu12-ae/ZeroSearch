@@ -253,7 +253,7 @@ ZeroSearch v0.2 将底层浏览器引擎从 Camoufox (Firefox) 迁移到 Patchri
 
 ---
 
-## 7. v1 → v2 迁移指南
+## 7. v0.1 → v0.2 迁移指南
 
 如果已有 v0.1 安装，升级步骤：
 
