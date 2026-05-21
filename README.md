@@ -1,10 +1,10 @@
 <div align="center">
 
-# ZeroSearch v0.2
+# ZeroSearch v0.3
 
 ### Claude Code 的 AI 增强搜索能力
 
-Powered by **Patchright** (undetected Chromium — CDP-level anti-detection)
+Powered by **Patchright** + **Chrome Daemon** (subprocess CDP — session-persistent browser)
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Claude Code Skill](https://img.shields.io/badge/Claude%20Code-Skill-purple.svg)](https://www.anthropic.com/news/skills)
@@ -18,27 +18,28 @@ Powered by **Patchright** (undetected Chromium — CDP-level anti-detection)
 
 一个 Claude Code Skill，将 Google AI Mode（`udm=50`）搜索能力直接集成到 Claude Code 中。不同于普通搜索返回 10 个蓝色链接，Google AI Mode 自动综合 100+ 个网站内容，生成带来源引用的结构化回答。
 
-**v0.2 亮点**：Patchright Chromium 引擎（CDP 协议级反检测）、始终有头模式（低 CAPTCHA）、系统代理自动继承、AI 原生精简输出、LRU 缓存、分级错误降级。
+**v0.3 亮点**：Chrome Daemon 常驻（首次 ~5s，后续 <1s）、subprocess + CDP 分离架构、幽灵连接自动恢复、Patchright 反检测、独立 Profile、LRU 缓存、分级错误降级。
 
 ---
 
 ## 相比原版的优势
 
-| 维度 | 原版 google-ai-mode-skill | ZeroSearch v0.2 |
+| 维度 | 原版 google-ai-mode-skill | ZeroSearch v0.3 |
 |------|--------------------------|-----------------|
-| **浏览器引擎** | Patchright + Chrome | Patchright + Chrome |
+| **浏览器引擎** | Patchright + Chrome | Patchright + Chrome (守护进程模式) |
+| **Daemon** | 无，每次冷启动 | **Chrome Daemon 常驻**，首次 ~5s，后续 <1s |
 | **默认模式** | 无头 (headless) | **始终有头** (可见窗口，CAPTCHA 更少) |
-| **反检测** | `--disable-blink-features` | CDP 协议级 + 语言强制英文 + StealthUtils |
+| **反检测** | `--disable-blink-features` | CDP 协议级 (Patchright launch) + 守护进程 + StealthUtils |
 | **缓存** | 无 | **LRU 50条 + TTL 5分钟**，重复查询 <1ms |
-| **错误处理** | 无结构化降级 | **6 级退出码** + CAPTCHA/超时/AI不可用分级降级 |
+| **错误处理** | 无结构化降级 | **6 级退出码** + CAPTCHA/超时/AI不可用分级降级 + 幽灵连接自动恢复 |
 | **输出** | 基础 Markdown + 引用 | **AI 原生精简**：90+ 模式去噪（中/英/日文）+ 紧凑脚注 |
 | **首次体验** | 无引导 | **AskUserQuestion** 三选项引导（用户级/项目级/否） |
 | **工作区集成** | 手动配置 | AskUserQuestion 引导注册 CLAUDE.md 搜索策略 |
-| **测试** | 未知 | **29 自动化测试**，回归安全 |
-| **架构文档** | 无 | 完整 PRD + ADR + 系统设计（.anws/v2/） |
+| **测试** | 未知 | **45 自动化测试**，回归安全 |
+| **架构文档** | 无 | 完整 PRD + ADR + 系统设计（.anws/v3/） |
 | **CAPTCHA** | 手动切 `--show-browser` | 默认有头，`Ctrl+C` 继续，不切模式 |
 
-> 原版 google-ai-mode-skill 是"能用"的 MVP，ZeroSearch v0.2 是**工程化的完整产品**——性能相当（~5s），但可靠性、可维护性、AI 消费效率全面领先。
+> 原版 google-ai-mode-skill 是"能用"的 MVP，ZeroSearch v0.3 是**工程化的完整产品**——性能相当（~5s 冷启动，热搜索 <1s），可靠性、可维护性、AI 消费效率全面领先。
 
 ---
 
@@ -95,24 +96,27 @@ python src/search/run.py --query "test" --fresh-profile
 ## 技术架构
 
 ```
-AskUserQuestion → Chrome (Patchright) → Google AI Mode (udm=50) → AI 提取 → 精简 Markdown
+v0.3 Daemon:
+  First search → subprocess Chrome → CDP connect → extract → close tab (Chrome stays)
+  Later searches → CDP connect → create tab → extract → close tab (<1s)
 ```
 
 | 系统 | 职责 | 性能预算 |
 |------|------|:--:|
-| **System 0: SKILL.md** | AskUserQuestion 交互、Profile 选择 | — |
-| **BrowserEngine** | Patchright Chrome 生命周期、双 Profile 管理、反检测 | <5s 冷启动 |
-| **SearchEngine** | 全流程编排、LRU 缓存 (50条/5min)、分级错误降级 | 编排层 |
+| **System 0: SKILL.md** | AskUserQuestion 交互、Daemon 启停触发 | — |
+| **BrowserEngine** | subprocess Chrome 生命周期 + Daemon 状态管理、反检测 | <5s 冷启动 |
+| **SearchEngine** | 全流程编排、Daemon 检测分支、LRU 缓存 (50条/5min)、分级错误降级 | 编排层 |
 | **ContentExtractor** | AI 完成检测、17 选择器引用提取、DOM + UI 噪音清洗 | <300ms |
 | **MarkdownConverter** | HTML→Markdown 三库 Fallback、[1] 脚注、紧凑输出 | <200ms |
 
 ### 关键设计决策
 
-- **Patchright Chromium**: CDP 协议级反检测（Runtime.enable / Console.enable 补丁），通过 Cloudflare/DataDome 验证
-- **真 Chrome Profile**: 默认复用系统 Chrome（`channel="chrome"`），Google 登录继承，CAPTCHA 率 <1%
+- **Chrome Daemon**: 首次冷启动后 Chrome 常驻，后续搜索 <1s。手动 `/zerosearch-stop` 或关窗停止
+- **subprocess + CDP**: subprocess 启动独立 Chrome 进程，Patchright `connect_over_cdp` 连接
+- **反检测**: `--disable-blink-features=AutomationControlled` 等 Chrome flags，独立 Profile
 - **系统代理自动继承**: Chromium 原生读取 macOS 代理设置，零配置
 - **pip 安装**: 无 Git Submodule，`pip install patchright` 一键升级
-- **冷启动 + 有头模式**: 每次搜索启动可见 Chrome 窗口，搜索完自动关闭
+- **幽灵连接恢复**: 搜索中途 Chrome 崩溃自动检测 + 冷启动重试
 
 ---
 
@@ -131,9 +135,9 @@ zerosearch/
 │   ├── search/           # SearchEngine (CLI + 编排 + 缓存)
 │   ├── extractor/        # ContentExtractor (AI 检测 + 引用 + 清洗)
 │   └── converter/        # MarkdownConverter (HTML→MD + 脚注)
-├── tests/                # pytest (29 tests)
+├── tests/                # pytest (45 tests)
 ├── results/              # 搜索结果 (--save)
-└── .anws/v2/             # 架构文档 (当前版本)
+└── .anws/v3/             # 架构文档 (当前版本)
 ```
 
 ---
@@ -144,15 +148,14 @@ zerosearch/
 |------|:--:|:--:|
 | 端到端搜索 (冷启动) | ≤5s | ~5s |
 | 缓存命中 | <1ms | <0.001ms |
-| CAPTCHA 触发率 (Option A) | <1% | Google 已登录用户 |
-| CAPTCHA 触发率 (Option B) | <10% | 未登录 |
+| CAPTCHA 触发率 (未登录) | <10% | 独立 Profile |
+| CAPTCHA 触发率 (已登录 Google) | <1% | 登录后几乎零触发 |
 
 ---
 
 ## CAPTCHA 处理
 
-- **Option A (推荐)**: 复用真实 Chrome Profile，已登录 Google → CAPTCHA 几乎零触发
-- **Option B**: 首次可能触发 CAPTCHA，浏览器窗口保持打开，手动验证后 Profile 记住
+ZeroSearch 使用独立 Chrome Profile（`~/.cache/zerosearch/chrome_profile/`）。首次搜索可能触发 CAPTCHA——浏览器窗口保持打开，手动验证后 Profile 记住登录状态，后续搜索 CAPTCHA 几乎零触发。
 
 ---
 
@@ -181,18 +184,22 @@ zerosearch/
 
 ---
 
-## 后续开发计划 v0.3
+## v0.3 已完成
 
-### 1. Chrome 持久化 Daemon
+### 1. Chrome 持久化 Daemon ✅
 
 首次冷启动后 Chrome 不关闭，后续搜索复用同一浏览器实例（只关标签页）。
 
-| 当前 | v0.3 目标 |
-|------|----------|
-| 每次搜索冷启动 ~5s | 首次 ~5s，后续 <1s |
-| 搜索完关闭整个浏览器 | 只关标签页，Chrome 常驻 |
+| 维度 | v0.2 | v0.3 |
+|------|------|------|
+| 冷启动 | 每次 ~5s | 首次 ~5s，后续 <1s |
+| 浏览器生命周期 | 搜索完关闭 | 只关标签页，Chrome 常驻 |
+| 进程管理 | Patchright launch | subprocess 独立进程 + CDP connect |
+| 崩溃恢复 | 无 | 幽灵连接检测 + 自动冷启动重试 |
 
-### 2. Plugin 化
+## 后续版本计划
+
+### Plugin 化
 
 从单 Skill 升级为 Claude Code Plugin，功能拆分为独立命令：
 

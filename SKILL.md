@@ -3,9 +3,9 @@ name: zerosearch
 description: Use this skill whenever the user needs current information, documentation, coding examples, or web research beyond the knowledge cutoff. Uses Patchright (undetected Chromium) to query Google AI Mode (udm=50) for AI-synthesized overviews with source citations. Returns compact, token-efficient Markdown designed for AI consumption. Trigger when user mentions web research, current events, latest docs, API references, technical comparisons, "search for", "look up", or asks about anything post-2025.
 ---
 
-# ZeroSearch v0.2
+# ZeroSearch v0.3
 
-Patchright-powered web research skill. Uses undetected Chromium (CDP-level anti-detection) to query Google AI Mode (`udm=50`) for AI-synthesized overviews with source citations.
+Patchright-powered web research skill with Chrome Daemon. First search launches Chrome (subprocess, persists across searches), subsequent searches reuse the same instance via CDP (`connect_over_cdp`) for near-instant results. Queries Google AI Mode (`udm=50`) for AI-synthesized overviews with source citations.
 
 ## First Run: Default Search Tool
 
@@ -35,19 +35,20 @@ AskUserQuestion:
 
 ## How It Works
 
-ZeroSearch launches a visible Chromium window via Patchright for each search, navigates to Google AI Mode, extracts the AI-synthesized overview and citations, converts to compact Markdown, then shuts down.
+**v0.3 Chrome Daemon**: On first search, ZeroSearch launches a visible Chrome window that stays open for the duration of your Claude Code session. Subsequent searches reuse the same Chrome instance via CDP (Chrome DevTools Protocol), creating a new tab instead of restarting the browser.
 
 ```
-Chrome (Patchright) → Google AI Mode (udm=50) → AI Extraction → Compact Markdown
+First search (~5s):  Chrome (subprocess) → CDP connect → extract → close tab (Chrome stays)
+Later searches (<1s): CDP connect → create tab → extract → close tab
 ```
 
 The browser uses an independent Chrome profile at `~/.cache/zerosearch/chrome_profile/`, separate from your daily Chrome. On first search, the Chrome window opens — you can sign into Google once, and the profile remembers your session for future searches.
 
-- **Note**: Chrome blocks DevTools remote debugging on its default profile directory (`~/Library/Application Support/Google/Chrome/`). An independent profile is required for Patchright automation.
+To stop the daemon: close the Chrome window, or use `/zerosearch-stop`.
 
 ## Usage
 
-### Step 1: Run search
+### Search
 
 ```bash
 cd ~/.claude/skills/zerosearch
@@ -55,7 +56,20 @@ source .venv/bin/activate
 python src/search/run.py --query "<optimized query>" --save
 ```
 
+### Daemon Management
+
+```bash
+python src/search/run.py --start    # Start Chrome daemon (no search)
+python src/search/run.py --stop     # Stop Chrome daemon
+```
+
+**Trigger words**: `/zerosearch-start`, `/zerosearch-stop`
+
 Add `--debug` for per-stage timing breakdown.
+
+### Rate Limiting
+
+Google AI Mode (`udm=50`) invokes multiple AI inference backends and is rate-limited more aggressively than regular search. **Space successive searches at least 3 seconds apart** to reduce CAPTCHA risk. The built-in LRU cache (50 entries, 5min TTL) eliminates duplicate queries automatically.
 
 ## Query Optimization
 

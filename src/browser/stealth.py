@@ -11,6 +11,17 @@ import time
 from dataclasses import dataclass, field
 
 
+# 反检测 Chrome 启动参数 (模块级常量，StealthConfig 与 Daemon 共享)
+BROWSER_ARGS = [
+    "--disable-blink-features=AutomationControlled",
+    "--disable-dev-shm-usage",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--lang=en",
+    "--disable-translate",
+]
+
+
 @dataclass
 class StealthConfig:
     """反检测配置 — 浏览器指纹伪装
@@ -47,15 +58,8 @@ class StealthConfig:
         "longitude": -74.0060,
     })
 
-    # Chromium 启动参数 (借鉴原版 google-ai-mode-skill)
-    browser_args: list = field(default_factory=lambda: [
-        "--disable-blink-features=AutomationControlled",
-        "--disable-dev-shm-usage",
-        "--no-first-run",
-        "--no-default-browser-check",
-        "--lang=en",
-        "--disable-translate",
-    ])
+    # Chromium 启动参数 (引用模块级常量)
+    browser_args: list = field(default_factory=lambda: list(BROWSER_ARGS))
 
     # 忽略的默认参数 (移除自动化标记)
     ignore_default_args: list = field(default_factory=lambda: [

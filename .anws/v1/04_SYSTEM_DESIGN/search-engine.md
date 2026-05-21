@@ -602,7 +602,7 @@ class BrowserClosedError(SearchError):
 
 | 版本 | 变更说明 |
 |------|---------|
-| v1.0 | 初始版本。标准库 LRU 缓存、argparse CLI、分级降级、同步编排 |
+| v0.1 | 初始版本。标准库 LRU 缓存、argparse CLI、分级降级、同步编排 |
 
 ---
 

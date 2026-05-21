@@ -840,6 +840,6 @@ src/browser/
 - [ADR-001: 浏览器引擎选型 -- Camoufox](../03_ADR/ADR_001_TECH_STACK.md)
 - [ADR-002: Camoufox 集成方式 -- Git Submodule](../03_ADR/ADR_002_CAMOUFOX_INTEGRATION.md)
 - [Architecture Overview](../02_ARCHITECTURE_OVERVIEW.md)
-- [PRD v1.0](../01_PRD.md)
+- [PRD v0.1](../01_PRD.md)
 - [Camoufox 官方文档](https://camoufox.com)
 - [Playwright API 文档](https://playwright.dev/python/docs/api/class-browser)
