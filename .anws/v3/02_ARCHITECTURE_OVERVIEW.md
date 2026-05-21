@@ -26,7 +26,7 @@ graph TD
     SE -->|冷启动| BE_COLD[BrowserEngine - Cold Launch]
     SE -->|热连接| BE_HOT[BrowserEngine - Hot Connect]
 
-    BE_COLD -->|Patchright launch| Chrome[Chrome 进程 - 分离模式]
+    BE_COLD -->|守护进程 (Patchright launch)| Chrome[Chrome 进程 - 分离模式]
     BE_HOT -->|connect_over_cdp| Chrome
     Chrome -.->|写入状态| DAEMON_STATE
 
@@ -95,9 +95,9 @@ graph TD
 **系统ID**: `browser-engine`
 
 **职责**:
-- **冷启动路径 (Cold Launch)**: `subprocess.Popen` 启动系统 Chrome（`channel="chrome"` 等价），传入反检测 flags（`--disable-blink-features=AutomationControlled` 等）+ `--remote-debugging-port`。Chrome 通过 `start_new_session=True` 完全脱离 Python 进程。等待 CDP 端点就绪后写入 `daemon.json`
-- **热连接路径 (Hot Connect)**: `connect_over_cdp("http://127.0.0.1:<port>")` 连接到已有 Chrome 实例，复用反检测 flags 和 Profile 状态。**冷启动也走此路径**（启动后立即 connect）
-- **反检测**: Chrome flags 提供基础反检测（已验证 `navigator.webdriver=false`）；connect_over_cdp 提供 Patchright stealth context 注入（locale、viewport、headers）
+- **冷启动路径 (Cold Launch)**: `subprocess` 启动 `daemon_runner.py` 守护进程，内部使用 Patchright `launch_persistent_context()` 启动 Chrome → 完整的 CDP 级反检测补丁（Runtime.enable / Console.enable 等）。守护进程写入 `daemon.json` 后 sleep 保持 Chrome 存活
+- **热连接路径 (Hot Connect)**: `connect_over_cdp("http://127.0.0.1:<port>")` 连接到已有 Chrome 实例。CDP 补丁已在 Chrome 进程内部生效（守护进程注入），无需重新注入。**冷启动也走此路径**（启动后立即 connect）
+- **反检测**: Patchright `launch_persistent_context` 提供完整 CDP 协议级补丁 + Chrome flags（`--disable-blink-features=AutomationControlled`）；守护进程退出时 Chrome 随 driver 关闭
 - **Daemon 状态文件管理 (新增)**: `~/.cache/zerosearch/daemon.json` 读写，存储 `{"pid": <int>, "cdp_port": <int>, "profile_path": "<str>", "started_at": "<ISO8601>"}`
 - **存活检测 (Liveness Check)**: 每次搜索前检查 `daemon.json` → 进程 PID 存活 → CDP 端口响应。任一失败则触发冷启动
 - **标签页生命周期**: 热搜索路径下 `new_page()` → 导航 → 提取 → `page.close()`，不调用 `browser.close()`
@@ -107,8 +107,9 @@ graph TD
 
 **v0.3 变更**:
 - 新增热连接路径（`connect_over_cdp`）：首次搜索 ~5s，后续搜索 <1s
-- 新增 `daemon_state.py` 模块：状态文件读写 + 存活检测 + subprocess Chrome 启动
-- **冷启动改用 subprocess**：绕过 Patchright 生命周期限制（Spike 验证 Patchright launch 无法使 Chrome 脱离进程）
+- 新增 `daemon_runner.py` 守护进程：Patchright `launch_persistent_context` + 信号处理 + 状态文件管理
+- 新增 `daemon_state.py` 模块：状态文件读写 + 存活检测
+- **冷启动改用守护进程**：subprocess 启动 Python 守护进程（而非直接启动 Chrome），守护进程内部使用 Patchright launch，获得完整 CDP 反检测
 - 上下文管理器状态机扩展：COLD → HOT → DEAD
 - 保留完整冷启动路径：与 v0.2 完全兼容
 
@@ -270,11 +271,11 @@ graph TD
 
 热搜索通过 Patchright 的 `connect_over_cdp(endpoint)` 连接到已有 Chrome 实例。首次冷启动使用完整的 `launch()` 注入反检测补丁，后续连接不重置 CDP 域，补丁持续生效。
 
-### 5.2 Chrome 进程分离 (Spike 已验证)
+### 5.2 Chrome 进程分离 (Daemon-Worker 模式)
 
-冷启动使用 `subprocess.Popen` 启动 Chrome（`start_new_session=True`），Chrome 完全独立于 Python 进程。Patchright 的 `launch()` / `launch_persistent_context()` 不可用于分离（driver 进程退出时必然杀 Chrome）。Chrome 仅通过以下方式停止：
-- 用户手动执行 `/zerosearch-stop`（向 PID 发送 SIGTERM）
-- 用户直接关闭 Chrome 窗口
+冷启动通过 `subprocess` 启动 `daemon_runner.py` 守护进程（`start_new_session=True`）。守护进程内部使用 Patchright `launch_persistent_context()` 启动 Chrome，完整注入 CDP 反检测补丁。守护进程通过 SIGTERM 信号优雅退出（`ctx.close()` + `p.stop()`）。Chrome 仅通过以下方式停止：
+- 用户手动执行 `/zerosearch-stop`（向守护进程 PID 发送 SIGTERM）
+- 用户直接关闭 Chrome 窗口（守护进程检测到后自动退出）
 
 ### 5.3 跨 CLI 状态共享
 
@@ -292,7 +293,8 @@ ZeroSearch/
 ├── README.md
 ├── src/
 │   ├── browser/                 # System 1: BrowserEngine
-│   │   ├── browser_factory.py   #   冷启动 launch + 热连接 connect_over_cdp
+│   │   ├── browser_factory.py   #   守护进程启动 + 热连接 connect_over_cdp
+│   │   ├── daemon_runner.py     #   [新增] Patchright 守护进程 (launch_persistent_context)
 │   │   ├── daemon_state.py      #   [新增] daemon.json 读写 + 存活检测
 │   │   ├── context_manager.py   #   状态机 COLD→HOT→DEAD
 │   │   ├── stealth.py           #   BROWSER_ARGS + 语言强制 + StealthUtils (不变)

@@ -12,6 +12,7 @@ import os
 import signal
 import socket
 import subprocess
+import sys
 import time
 import urllib.request
 from pathlib import Path
@@ -28,20 +29,15 @@ except ImportError:
     Page = None
 
 from .profile_manager import ProfileManager, DEFAULT_PROFILE_DIR
-from .stealth import StealthConfig, BROWSER_ARGS
+from .stealth import StealthConfig
 from .daemon_state import (
-    write_state,
+    DAEMON_STATE_PATH,
     read_state,
     is_pid_alive,
     is_cdp_responsive,
     cleanup_stale,
     remove_state,
 )
-
-# Chrome 可执行文件路径
-_CHROME_PATHS = [
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-]
 
 
 class BrowserLaunchError(Exception):
@@ -197,26 +193,6 @@ class BrowserFactory:
     # ── v0.3 Daemon 方法 ──────────────────────────────────────────
 
     @staticmethod
-    def _find_chrome_path() -> str:
-        """查找 Chrome 可执行文件路径"""
-        for path in _CHROME_PATHS:
-            if os.path.exists(path):
-                return path
-        # 尝试 which google-chrome
-        try:
-            result = subprocess.run(
-                ["which", "google-chrome"], capture_output=True, text=True
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                return result.stdout.strip()
-        except Exception:
-            pass
-        raise BrowserLaunchError(
-            "Google Chrome not found. Install Chrome or set CHROME_PATH.",
-            exit_code=1,
-        )
-
-    @staticmethod
     def _find_free_port(start: int = 9222, end: int = 9232) -> int:
         """扫描空闲 TCP 端口"""
         for port in range(start, end + 1):
@@ -251,37 +227,35 @@ class BrowserFactory:
         )
 
     def launch_daemon(self, profile_path: Optional[Path] = None) -> "Browser":
-        """冷启动 Chrome Daemon（subprocess 分离模式）
+        """冷启动 Chrome Daemon（Patchright 守护进程）
 
-        1. subprocess.Popen 启动 Chrome（独立进程）
+        1. subprocess 启动 daemon_runner.py（Patchright launch_persistent_context）
+           → 完整的 CDP 级反检测补丁（Runtime.enable / Console.enable 等）
         2. 等待 CDP 端点就绪
-        3. 写入 daemon.json
+        3. 读取 daemon.json（守护进程写入）
         4. connect_over_cdp 获取 Browser 对象
         5. 返回 Browser（调用方负责后续操作）
 
         Returns:
             Patchright Browser 对象（通过 connect_over_cdp 连接）
         """
-        # 守卫：如果已有存活 Daemon，直接连接返回，避免同 Profile 冲突
+        # 守卫：如果已有存活 Daemon，直接连接返回
         if BrowserFactory.daemon_is_alive():
             return self.connect_to_daemon()
 
         if profile_path is None:
             profile_path = Path(DEFAULT_PROFILE_DIR)
-        profile_path = Path(profile_path)
-        profile_path.mkdir(parents=True, exist_ok=True)
 
-        # 写入语言偏好
-        self._write_language_prefs(profile_path)
-
-        chrome_path = self._find_chrome_path()
         port = self._find_free_port()
+        state_path = str(DAEMON_STATE_PATH)
+        runner = Path(__file__).resolve().parent / "daemon_runner.py"
 
         cmd = [
-            chrome_path,
-            f"--remote-debugging-port={port}",
-            f"--user-data-dir={str(profile_path)}",
-            *BROWSER_ARGS,
+            sys.executable,
+            str(runner),
+            "--port", str(port),
+            "--profile", str(profile_path),
+            "--state", state_path,
         ]
 
         try:
@@ -293,27 +267,20 @@ class BrowserFactory:
             )
         except Exception as e:
             raise BrowserLaunchError(
-                f"Failed to start Chrome: {e}"
+                f"Failed to start daemon runner: {e}"
             ) from e
 
+        # 等待 CDP 就绪（守护进程启动 Patchright + Chrome 需要时间）
         try:
-            self._wait_for_cdp(port)
+            self._wait_for_cdp(port, timeout=30.0)
         except BrowserLaunchError:
-            # CDP 超时，尝试 kill Chrome
             try:
                 os.kill(proc.pid, signal.SIGTERM)
             except Exception:
                 pass
             raise
 
-        # 写入状态文件
-        write_state(
-            pid=proc.pid,
-            cdp_port=port,
-            profile_path=str(profile_path),
-        )
-
-        # 通过 connect_over_cdp 获取 Browser 对象
+        # daemon.json 已由守护进程写入，connect_over_cdp 获取 Browser
         if not _PATCHRIGHT_AVAILABLE:
             raise BrowserLaunchError("Patchright not found.")
 

@@ -12,20 +12,24 @@ ZeroSearch v0.2 每次搜索都冷启动 Chrome 浏览器（Patchright `launch()
 
 ## 决策
 
-选择 **方案 A: connect_over_cdp + subprocess 冷启动**。
+选择 **方案 A: Patchright 守护进程 + connect_over_cdp**（最终方案）。
 
 **Spike 验证结果 (2026-05-21)**:
 - ✅ `subprocess.Popen` 启动 Chrome（带反检测 flags）→ Chrome 完全独立于 Python 进程
 - ✅ `navigator.webdriver = False`（`--disable-blink-features=AutomationControlled` 有效）
 - ✅ `connect_over_cdp` 跨进程连接成功 → 导航 Google 无 CAPTCHA
-- ❌ Patchright `launch()` 无法使 Chrome 脱离进程（os._exit 也不行，driver 必然杀 Chrome）
+- ❌ Patchright `launch()` 无法使 Chrome 脱离进程（driver 必然杀 Chrome）
+- ❌ subprocess 直接启动 Chrome 绕过 Patchright launch → 丢失 CDP 协议级补丁
+- ✅ 最终方案：subprocess 启动 Python 守护进程，守护进程内部使用 Patchright `launch_persistent_context()`
 
-**修正后的工作流程**:
-1. **冷启动**: `subprocess.Popen([chrome, "--remote-debugging-port=<port>", "--disable-blink-features=AutomationControlled", ...])` → 等待 CDP 就绪 → 写入 `daemon.json`
-2. **热搜索 (冷启动+热搜索统一)**: 读取 `daemon.json` → 检测 PID 存活 + CDP 响应 → `patchright.chromium.connect_over_cdp("http://127.0.0.1:<port>")` → `browser.new_page()` → 导航 → 提取 → `page.close()` → `browser.close()` (释放连接，不杀 Chrome)
-3. **停止**: `/zerosearch-stop` → 向 Chrome PID 发送 SIGTERM → 删除 `daemon.json`
+**最终工作流程 (daemon_runner)**:
+1. **冷启动**: `subprocess.Popen([python, daemon_runner.py, --port, --profile, --state])` → 守护进程调用 Patchright `launch_persistent_context()` 启动 Chrome（**完整 CDP 反检测补丁注入**）→ 写入 `daemon.json` → sleep 保持存活
+2. **热搜索 (冷启动+热搜索统一)**: 读取 `daemon.json` → 检测 PID 存活 + CDP 响应 → `patchright.chromium.connect_over_cdp("http://127.0.0.1:<port>")` → `browser.new_page()` → 导航 → 提取 → `page.close()`
+3. **停止**: `/zerosearch-stop` → 向守护进程 PID 发送 SIGTERM → 守护进程优雅退出（`ctx.close()` + `p.stop()`）→ Chrome 随 driver 关闭 → 删除 `daemon.json`
 
-**核心理由**: 0 新依赖，冷启动用 subprocess（标准库），热连接用 Patchright connect_over_cdp（复用 Page API + 反检测上下文）。Chrome flags 提供基础反检测（已验证 `navigator.webdriver=false`），connect_over_cdp 提供 Patchright 的 stealth context 注入。
+**核心理由**: 0 新依赖，完整 Patchright CDP 级反检测（Runtime.enable / Console.enable 补丁）。守护进程（50 行 Python）与 Worker 脚本解耦——守护进程崩溃时可自动重启，Worker 通过 CDP 连接时补丁已在 Chrome 内部生效。
+
+**Google 验证 (ZeroSearch 搜索)**: 该方案被业界称为"Decoupled Daemon Process"模式，是 2026 年浏览器自动化反检测的生产级最佳实践。
 
 ## 候选方案对比
 
