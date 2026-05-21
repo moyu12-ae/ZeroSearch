@@ -20,6 +20,11 @@ from .cache import LRUCache
 from .error_handler import ErrorHandler, EXIT_CAPTCHA
 
 
+class CDPDisconnectError(Exception):
+    """CDP 连接断开（Chrome 崩溃/关窗），需要冷启动重试"""
+    pass
+
+
 class SearchEngine:
     """Google AI Mode 搜索引擎 — 全流程编排器
 
@@ -81,6 +86,23 @@ class SearchEngine:
         # ── Step 3: 搜索流水线 ─────────────────────────
         try:
             result = self._run_search_pipeline(browser, query)
+        except CDPDisconnectError as cdp_err:
+            # Ghost Connection: Chrome 中途崩溃/关窗 → 清理 + 冷启动重试
+            self._log(f"CDP 断连: {cdp_err}，清理并重试...")
+            self._status("检测到浏览器连接断开，重新启动...")
+            from ..browser.browser_factory import BrowserFactory
+            BrowserFactory.cleanup_daemon()
+            try:
+                browser, _ = self._resolve_browser()
+                result = self._run_search_pipeline(browser, query)
+            except Exception as retry_err:
+                self._log(f"重试失败: {retry_err}")
+                result = {
+                    "markdown": f"搜索失败: {retry_err}",
+                    "citations": [],
+                    "elapsed_ms": (time.perf_counter() - t_start) * 1000,
+                    "cached": False,
+                }
         except KeyboardInterrupt:
             self._log("用户中断")
             sys.exit(130)
@@ -151,9 +173,24 @@ class SearchEngine:
         """
         t_nav = time.perf_counter()
 
-        page = browser.new_page()
+        try:
+            page = browser.new_page()
+        except Exception as e:
+            if _is_cdp_error(e):
+                raise CDPDisconnectError(f"CDP 断连 (new_page): {e}") from e
+            raise
+
         google_url = f"https://www.google.com/search?q={query}&udm=50"
-        page.goto(google_url, wait_until="domcontentloaded", timeout=15000)
+        try:
+            page.goto(google_url, wait_until="domcontentloaded", timeout=15000)
+        except Exception as e:
+            if _is_cdp_error(e):
+                try:
+                    page.close()
+                except Exception:
+                    pass
+                raise CDPDisconnectError(f"CDP 断连 (goto): {e}") from e
+            raise
         nav_ms = (time.perf_counter() - t_nav) * 1000
         self._log(f"导航完成, 耗时={nav_ms:.0f}ms")
 
@@ -244,3 +281,20 @@ class SearchEngine:
             self._factory.close()
         except Exception:
             pass
+
+
+def _is_cdp_error(exc: Exception) -> bool:
+    """判断异常是否为 CDP 连接断开类错误"""
+    msg = str(exc).lower()
+    keywords = [
+        "target closed",
+        "browser closed",
+        "browser has been closed",
+        "connection closed",
+        "websocket closed",
+        "protocol error",
+        "cdp",
+        "target crashed",
+        "browser has disconnected",
+    ]
+    return any(kw in msg for kw in keywords)

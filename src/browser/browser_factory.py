@@ -416,4 +416,15 @@ class BrowserFactory:
             except OSError:
                 pass
 
+            # 清理孤儿子进程 (Chrome Helper / Renderer / GPU)
+            time.sleep(0.5)
+            try:
+                subprocess.run(
+                    ["pkill", "-P", str(state.pid)],
+                    capture_output=True,
+                    timeout=3,
+                )
+            except Exception:
+                pass
+
         remove_state()

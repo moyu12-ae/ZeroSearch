@@ -67,6 +67,10 @@ python src/search/run.py --stop     # Stop Chrome daemon
 
 Add `--debug` for per-stage timing breakdown.
 
+### Rate Limiting
+
+Google AI Mode (`udm=50`) invokes multiple AI inference backends and is rate-limited more aggressively than regular search. **Space successive searches at least 3 seconds apart** to reduce CAPTCHA risk. The built-in LRU cache (50 entries, 5min TTL) eliminates duplicate queries automatically.
+
 ## Query Optimization
 
 Always optimize queries before executing. Specificity determines result quality.
