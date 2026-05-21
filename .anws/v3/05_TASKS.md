@@ -46,7 +46,7 @@ graph TD
 | Sprint | 代号 | 核心任务 | 退出标准 | 预估 |
 |--------|------|---------|---------|:--:|
 | **S1** | Daemon 核心 | daemon_state + 工厂双路径 + 状态机 | 冷启动分离模式可运行，热连接可创建标签页，单元测试通过 | 3-4d |
-| **S2** | 系统集成 | CLI 适配 + 编排层 + SKILL.md + 回归 | 完整五路径可运行，v0.2 29 tests 通过 | 2-3d |
+| **S2** | 系统集成 | CLI 适配 + 编排层 + SKILL.md + 回归 | 完整五路径可运行，45 tests 通过 | 2-3d |
 
 ---
 
@@ -352,7 +352,7 @@ graph TD
     - **路径 3 自动重建**: 关闭 Chrome 窗口 → 搜索 → 自动检测 → 冷启动重建 → 成功
     - **路径 4 手动停止**: `/zerosearch-stop` → Chrome 关闭 → daemon.json 删除
     - **路径 5 手动启动**: `/zerosearch-start` → Chrome 启动（不搜索）
-    - **回归**: `python -m pytest tests/ -v` → 29/29 pass (v0.2) + 10/10 pass (test_daemon_state.py) = 39/39 pass
+    - **回归**: `python -m pytest tests/ -v` → 45/45 pass (0 回归)
     - **0 新依赖**: `pip list` 与 v0.2 要求一致
     - **Output**: 输出格式与 v0.2 一致（Markdown + 脚注）
   - **验证类型**: 冒烟测试 + 回归测试 + E2E测试
