@@ -143,7 +143,9 @@
 - **独立可测性**: 首次安装后执行 `/zerosearch-config`，验证 AskUserQuestion 三选项引导
 - **涉及系统**: SearchConfigCommand
 - **验收标准**:
-    - [ ] AskUserQuestion 三选项引导（设为默认搜索工具：用户级/项目级/否）
+        - [ ] AskUserQuestion 三选项引导（设为默认搜索工具：用户级/项目级/否）
+    - [ ] 排他性注册：选择新位置自动从旧位置清除，确保任意时刻只有一个位置有 ZeroSearch 注册
+    - [ ] 通过 `scripts/configure_search.py --detect` 检测当前状态，`--scope user/project/none` 执行注册
     - [ ] 配置结果写入 `~/.cache/zerosearch/config.json`
 
 ---
