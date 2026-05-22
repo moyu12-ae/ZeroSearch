@@ -7,6 +7,7 @@
 import os
 import re
 from datetime import datetime
+from pathlib import Path
 
 
 def _sanitize_filename(name: str, max_length: int = 50) -> str:
