@@ -370,7 +370,7 @@ graph TD
 
 ### Phase 1: 搜索功能验证
 
-- [ ] **T0.3.1** [REQ-024]: E2E 搜索链路验证
+- [x] **T0.3.1** [REQ-024]: E2E 搜索链路验证
   - **描述**: 在 Claude Code 中加载 Plugin（`--plugin-dir`），验证完整的搜索链路：`/zerosearch:zerosearch <query>` → Shannon 策略优化 → Google AI Mode 搜索 → 结构化结果返回
   - **输入**: `.anws/v4/01_PRD.md` US-024 验收标准, INT-S2 产出（引擎就位）
   - **输出**: E2E 测试报告（搜索成功 + 输出格式正确 + 性能达标）
@@ -389,7 +389,7 @@ graph TD
 
 ### Phase 2: 文档收尾
 
-- [ ] **T0.3.2** [基础]: README + AGENTS.md 最终更新
+- [x] **T0.3.2** [基础]: README + AGENTS.md 最终更新
   - **描述**: 确认 README.md 安装和使用文档与 Plugin 模式一致；更新 AGENTS.md 中版本号和任务完成状态
   - **输入**: `.anws/v4/05_TASKS.md`（本文件）, `README.md`, `AGENTS.md`
   - **输出**: 最终版 README.md + AGENTS.md
@@ -409,7 +409,7 @@ graph TD
 
 ## Sprint 3 集成验证
 
-- [ ] **INT-S3** [MILESTONE]: S3 集成验证 — 发布就绪
+- [x] **INT-S3** [MILESTONE]: S3 集成验证 — 发布就绪
   - **描述**: 验证 S3 退出标准：完整搜索链路可运行 + 文档反映实际状态 + 无已知阻塞 Bug
   - **输入**: T0.3.1, T0.3.2 产出
   - **输出**: S3 集成验证报告（PASS/FAIL + 发布检查清单）
