@@ -123,8 +123,9 @@ zerosearch/                                    # Plugin 根目录
 ├── tests/                                     # pytest (45 tests)
 ├── setup.sh                                   # 安装脚本
 ├── requirements.txt                           # Python 依赖
-├── 搜索策略/
-│   └── 快速搜索策略.md                          # 香农信息论策略原文
+├── docs/
+│   └── 搜索策略/
+│       └── 快速搜索策略.md                      # 香农信息论策略原文
 └── .anws/v4/                                  # 架构文档 (当前版本)
 ```
 
