@@ -42,7 +42,7 @@
 - **[G2]**: 引入香农提示词工程 Skill，指导 Claude 将用户查询转化为高信息量搜索提示词
 - **[G3]**: 统一搜索入口 `/zerosearch`，一次搜索完成，不分离 Quick/Deep 模式
 - **[G4]**: v0.3 底层引擎（BrowserEngine/ContentExtractor/MarkdownConverter）完整复用，零回归
-- **[G5]**: 配置命令 `/zerosearch-config` 负责 Profile 选择和默认搜索工具注册
+- **[G5]**: 配置命令 `/zerosearch-config` 负责默认搜索工具注册。Chrome Profile 固定使用独立 Profile（`~/.cache/zerosearch/chrome_profile/`），无需用户选择
 
 ### 3.2 非目标 (Non-Goals)
 
@@ -138,13 +138,12 @@
 
 #### US-025: 搜索配置管理 [REQ-025] (优先级: P1)
 
-- **故事描述**: 作为一个用户，我想要通过 `/zerosearch-config` 管理搜索配置，包括 Chrome Profile 选择和默认搜索工具注册。
+- **故事描述**: 作为一个用户，我想要通过 `/zerosearch-config` 将 ZeroSearch 设为默认搜索工具。Chrome 使用独立 Profile 自动管理，无需手动配置。
 - **用户价值**: 统一配置入口，不需要记 CLI 参数
 - **独立可测性**: 首次安装后执行 `/zerosearch-config`，验证 AskUserQuestion 三选项引导
 - **涉及系统**: SearchConfigCommand
 - **验收标准**:
-    - [ ] AskUserQuestion 三选项引导（设为默认搜索工具：用户级/项目级/否）— 从 v0.3 继承
-    - [ ] Profile 选择界面（复用 v0.3 的 `--reconfigure` 逻辑）
+    - [ ] AskUserQuestion 三选项引导（设为默认搜索工具：用户级/项目级/否）
     - [ ] 配置结果写入 `~/.cache/zerosearch/config.json`
 
 ---
