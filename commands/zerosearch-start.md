@@ -20,7 +20,7 @@ allowed-tools: Bash
 - **Daemon 未运行**: 执行冷启动：
 
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/src/search/run.py --start
+python "${CLAUDE_PLUGIN_ROOT}/src/search/run.py" --start
 ```
 
 Chrome 窗口出现后保持打开。后续 `/zerosearch` 将复用该实例。

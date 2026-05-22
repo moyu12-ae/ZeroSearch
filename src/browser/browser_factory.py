@@ -7,6 +7,8 @@ BrowserFactory — Patchright 浏览器实例工厂
 v0.3: 新增 Daemon 方法 — launch_daemon(), connect_to_daemon(), cleanup_daemon()
 """
 
+from __future__ import annotations
+
 import json
 import os
 import signal

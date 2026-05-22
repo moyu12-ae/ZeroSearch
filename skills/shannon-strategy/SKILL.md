@@ -1,5 +1,5 @@
 ---
-name: shannon-search-strategy
+name: shannon-strategy
 description: 香农信息论搜索策略。当用户需要搜索、查询、查找信息时自动激活。基于 I(x) = -log₂P(x) 的数学原理，指导 Claude 构造高信息量搜索查询。触发词：搜索、search、查一下、文档、最新、对比、方案、调研。
 ---
 

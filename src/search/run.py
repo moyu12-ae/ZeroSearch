@@ -65,26 +65,18 @@ def _needs_install(venv_python: str) -> bool:
     return result.returncode != 0
 
 
-def _detect_externally_managed(venv_python: str) -> bool:
-    """检测 venv 中的 pip 是否需要 --break-system-packages 标志。"""
-    try:
-        result = subprocess.run(
-            [venv_python, "-m", "pip", "install", "--help"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        return "--break-system-packages" in result.stdout
-    except Exception:
-        return False
-
-
 def _pip_install(venv_python: str, args: list[str], cwd: str) -> None:
-    """在 venv 中执行 pip install。"""
+    """在 venv 中执行 pip install。
+
+    先尝试不带 --break-system-packages 的正常安装，
+    失败时自动追加该标志重试（兼容 Debian/Ubuntu externally-managed 环境）。
+    """
     cmd = [venv_python, "-m", "pip", "install"] + args
-    if _detect_externally_managed(venv_python):
+    try:
+        subprocess.run(cmd, check=True, cwd=cwd)
+    except subprocess.CalledProcessError:
         cmd.append("--break-system-packages")
-    subprocess.run(cmd, check=True, cwd=cwd)
+        subprocess.run(cmd, check=True, cwd=cwd)
 
 
 def _install_deps(project_root: Path, venv_python: str) -> None:

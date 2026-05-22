@@ -57,15 +57,21 @@ def save_result(markdown: str, query: str, output_dir: str = "results") -> str:
     - 文件名非法字符替换为 _
     - 目录不存在时自动创建
     - 幂等: 同一时间戳+查询名覆盖写入
+    - 相对路径自动解析为项目根目录下的子目录
 
     Args:
         markdown: Markdown 文本内容
         query: 搜索查询字符串
-        output_dir: 输出目录，默认为 "results"
+        output_dir: 输出目录，默认为 "results" (相对路径解析为项目根下)
 
     Returns:
         写入文件的绝对路径
     """
+    # 相对路径解析为项目根目录下的子目录
+    if not os.path.isabs(output_dir):
+        project_root = Path(__file__).resolve().parent.parent.parent
+        output_dir = str(project_root / output_dir)
+
     # 确保输出目录存在
     os.makedirs(output_dir, exist_ok=True)
 
