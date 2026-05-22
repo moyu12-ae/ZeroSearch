@@ -112,13 +112,15 @@ class LRUCache:
 
         如果 key 已存在且未过期，更新值并移到队尾。
         如果缓存已满，先淘汰过期条目再淘汰 LRU 条目。
+        始终拷贝 value 字典，不修改调用方传入的对象。
 
         Args:
             key: 查询 key，会自动规范化（lower + strip）。
             value: 缓存值字典，应包含 "markdown"、"timestamp"、"query" 字段。
         """
+        # 始终拷贝，确保不修改调用方数据
+        value = dict(value)
         if "timestamp" not in value:
-            value = dict(value)
             value["timestamp"] = time.monotonic()
 
         normalized = self._normalize_key(key)

@@ -76,7 +76,12 @@ def read_state() -> Optional[DaemonState]:
 
 
 def is_pid_alive(pid: int) -> bool:
-    """检测 PID 是否存活（os.kill(pid, 0)）"""
+    """检测 PID 是否存活（os.kill(pid, 0)）。
+
+    PID <= 0 在 Unix 上为特殊值（进程组/调度器等），始终返回 False。
+    """
+    if pid <= 0:
+        return False
     try:
         os.kill(pid, 0)
         return True
