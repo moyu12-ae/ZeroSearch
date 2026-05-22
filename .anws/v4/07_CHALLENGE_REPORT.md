@@ -1,9 +1,9 @@
 # ZeroSearch v0.4 质疑报告 (Challenge Report)
 
 > **审查日期**: 2026-05-22
-> **审查范围**: `.anws/v4/` 全部设计文档 + v0.3 SKILL.md 逐条对照
-> **累计轮次**: 2
-> **验证手段**: 设计文档审查 + v0.3/v0.4 逐条内容对照 + 模块化质量评估
+> **审查范围**: `.anws/v4/` 全部设计文档 + 全部 Python 源代码审计
+> **累计轮次**: 3
+> **验证手段**: 设计文档审查 + v0.3/v0.4 逐条对照 + CLI/engine/daemon 源码逐段审计
 
 ---
 
@@ -25,6 +25,14 @@
 | Critical | 6 | v0.3 操作知识 6 项遗漏：Rate Limiting、CAPTCHA Handling、Output Format、Troubleshooting、First-Time Setup、自动首次运行检测 | ✅ 已修复 |
 | High | 1 | "How It Works" 叙述碎片化 — v0.3 一段话讲清，v0.4 分散在 4 个文件 | ✅ 已修复 |
 | Medium | 1 | 总 token 开销增加 2.6x (136→361行)，6 个文件维护面 | ✅ 可接受 |
+
+### 第3轮 — 代码实现审计（当前活跃）
+
+| 严重度 | 数量 | 摘要 | 状态 |
+|--------|------|------|------|
+| Critical | 1 | Plugin 命令中 Bash 引用使用相对路径 — 依赖 CWD=Plugin 根，实际运行时 CWD 是用户项目目录 | ⏳ 待修复 |
+| High | 1 | README CLI 模式文档与 cli.py 实现不一致 — 记录 `--profile`/`--fresh-profile` 等不存在参数 | ⏳ 待修复 |
+| Medium | 1 | SKILL.md.deprecated 仍含有效 YAML frontmatter — 误改名可触发冲突 | ⏳ 待清理 |
 
 ---
 
@@ -106,6 +114,58 @@
 | CH-17 | 内容遗漏 | Critical | SKILL.md L127-135 | **Troubleshooting 完全缺失**。v0.3 有 5 行问题/解决方案表（Patchright not found, Chrome not installed, AI Mode unavailable, Profile corrupted, CAPTCHA every search）。v0.4 无任何 troubleshooting | 用户遇到问题只能放弃，无法自助修复 | 增加 `skills/troubleshooting/SKILL.md` 或在 README.md 中补充 |
 | CH-11 | 叙述完整度 | High | SKILL.md L37-47 | **"How It Works" 叙述碎片化**。v0.3 一段话讲清 Chrome Daemon 概念（"First search ~5s, later <1s"）。v0.4 中此信息分散在：`commands/zerosearch.md` Step 3（一句话提及）、`skills/search-execution/SKILL.md` Step 2（状态检测）、`zerosearch-start.md`（启动说明）。无一处完整讲清整体概念 | 新用户/新 AI 会话难以建立 Daemon 心智模型，可能困惑"为什么有个 Chrome 窗口" | 在 `commands/zerosearch.md` 开头增加 3-4 行的 "How It Works" 速览 |
 | CH-18 | 模块化效率 | Medium | 整体 | **Token 开销增加 2.6x**。v0.3 单文件 136 行, v0.4 合计 361 行。但 AI 每次搜索只加载 ~110 行（zerosearch.md 60 + strategy 150+ 部分），净收益为正 | 维护面从 1 个文件变 6 个，但每次只读 2 个 | 可接受。合并非关键内容（troubleshooting 放 README 而非 Skill）以减少 AI 加载量 |
+
+---
+
+## 第3轮详细审查: 代码实现审计
+
+> **审查方法**: 逐段审计 `cli.py`、`run.py`、`engine.py`、`daemon_runner.py`、所有 `commands/*.md`、`skills/*/SKILL.md`，对照 PRD + ADR 契约逐条验证。
+
+### 审查范围
+
+| 文件 | 审计内容 |
+|------|---------|
+| `src/search/cli.py` | CLI 参数解析、退出码路由、import 路径 |
+| `src/search/run.py` | venv 包装、项目根定位 |
+| `src/search/engine.py` | 搜索编排、Daemon 双路径、LRU 缓存、错误降级 |
+| `src/browser/daemon_runner.py` | Daemon 子进程、状态文件写入 |
+| `commands/*.md` | Bash 引用路径正确性 |
+| `skills/search-execution/SKILL.md` | Bash 调用引用路径 |
+
+### 第3轮核心发现
+
+| ID | 类别 | 严重度 | 契约 | 位置 | 发现 | 影响 | 建议 |
+|----|------|--------|------|------|------|------|------|
+| CH-19 | 运行契约 | Critical | 运行承诺 | `commands/zerosearch.md:52`, `commands/zerosearch-start.md:23`, `commands/zerosearch-stop.md:27`, `skills/search-execution/SKILL.md:35` | **所有命令和 Skill 中的 Bash 引用使用相对路径 `python src/search/run.py`**。当 Claude Code 通过 Plugin 执行 `/zerosearch:zerosearch <query>` 时，Claude 从用户项目 CWD 执行 Bash，而 `src/search/run.py` 在 Plugin 目录下。除非 CWD 恰好等于 Plugin 根目录，否则报 `FileNotFoundError` | Plugin 安装后命令无法运行 — 用户输入 `/zerosearch:zerosearch test` 后 Python 找不到脚本 | 所有 Bash 引用改用 `${CLAUDE_PLUGIN_ROOT}/src/search/run.py`，或使用 `cd ${CLAUDE_PLUGIN_ROOT} && python src/search/run.py ...` |
+| CH-20 | 文档契约 | High | 文档契约 | `README.md:74-81` CLI 模式 | README 的 "CLI 模式" 章节仍记录 v0.3 参数 `--profile <path>`、`--fresh-profile`。当前 `cli.py` 的 `build_parser()` 仅支持 `--query/--start/--stop --save --debug`，不支持 `--profile`/`--fresh-profile`。用户按 README 执行 `python src/search/run.py --query "test" --profile <path>` 会得到 `unrecognized arguments: --profile` 错误 | 用户按文档操作失败，对项目可信度造成损害；PRD 已将 profile 管理移至 `/zerosearch:zerosearch-config`，但 README 未同步 | 删除 README CLI 模式中 `--profile`/`--fresh-profile` 的示例，替换为实际支持的参数；增加说明 profile 管理通过 `/zerosearch:zerosearch-config` 进行 |
+| CH-21 | 遗留风险 | Medium | 无特定契约 | `SKILL.md.deprecated:1-4` | 废弃文件仍保留完整 YAML frontmatter (`name: zerosearch`, `description: Use this skill...`)。如果文件被意外改名回 `SKILL.md`（例如 git 操作误恢复），会与 Plugin 的命名空间 `/zerosearch:xxx` 产生冲突，导致双入口并存 | 低概率但高影响 — 如果发生，Claude Code 会同时加载 Plugin 和独立 Skill，产生不可预测行为 | 删除 `SKILL.md.deprecated` 的 YAML frontmatter，仅保留正文作为历史参考；或直接删除该文件（内容已完整迁移到 commands + skills 中） |
+
+### 架构合规性检查
+
+| 检查项 | 状态 | 证据 |
+|--------|:--:|------|
+| `cli.py` import 路径机制 (`_setup_import_path`) | ✅ | `parent.parent` 正确解析 Plugin 根目录；lazy import 在 path setup 后执行 |
+| `daemon_runner.py` import 路径 | ✅ | 自行执行 `sys.path.insert(0, parent.parent.parent)` |
+| `engine.py` 相对导入 | ✅ | `from ..browser.browser_factory` — 正确使用包内相对导入 |
+| `run.py` 项目根定位 (`parents[2]` + `setup.sh` 验证) | ✅ | fallback 到 `Path.cwd()` 健壮 |
+| 6 级退出码完整 | ✅ | `cli.py` 定义 0/1/2/3/4/5/130 + `_extract_exit_code()` 关键字匹配 |
+| LRU 缓存 (50条/5min) | ✅ | `engine.py` CACHE_SIZE=50, CACHE_TTL=300 |
+| Daemon 冷启动/热连接双路径 | ✅ | `engine.py._resolve_browser()` 完整实现状态检测分支 |
+| 幽灵连接恢复 (CDP 断连自动重试) | ✅ | `engine.py.search()` 捕获 CDPDisconnectError → cleanup → 冷启动重试 |
+| 反检测 flag (`BROWSER_ARGS`) | ✅ | `daemon_runner.py` 正确引用 `stealth.py` |
+| CAPTCHA 等待逻辑 | ⚠️ | `engine.py:210` `time.sleep(600)` — 10 分钟硬等待，无超时反馈 |
+| **Bash 路径引用** | ❌ | 见 CH-19 |
+| **README CLI 同步** | ❌ | 见 CH-20 |
+
+### 未发现问题的部分
+
+以下审计点经过逐行检查，确认无暗病：
+
+- **Import 链闭环**: `cli.py` → `engine.py` → `browser_factory.py` + `extractor.py` + `converter.py` + `cache.py` + `error_handler.py` — 所有 import 链可通过 `python3 -m pytest tests/ -q` 的 45 passed 验证
+- **Daemon 状态文件原子性**: `daemon_state.py` 使用 `os.replace()` 原子写入
+- **退出码向后兼容**: 退出码表 0/1/2/3/4/5/130 与 v0.3 SKILL.md 完全一致
+- **CDP 错误检测**: `_is_cdp_error()` 覆盖 9 种断连关键字
+- **atexit 资源释放**: `engine.py:44` 注册 `shutdown()` 确保异常退出时释放资源
 
 ---
 

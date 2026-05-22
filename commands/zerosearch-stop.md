@@ -24,7 +24,7 @@ allowed-tools: Bash
   4. 清理 `~/.cache/zerosearch/daemon.json`
 
 ```bash
-python src/search/run.py --stop
+python ${CLAUDE_PLUGIN_ROOT}/src/search/run.py --stop
 ```
 
 Chrome 窗口关闭，状态文件清理。下次 `/zerosearch` 将自动冷启动。

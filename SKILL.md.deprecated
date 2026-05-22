@@ -1,9 +1,4 @@
----
-name: zerosearch
-description: Use this skill whenever the user needs current information, documentation, coding examples, or web research beyond the knowledge cutoff. Uses Patchright (undetected Chromium) to query Google AI Mode (udm=50) for AI-synthesized overviews with source citations. Returns compact, token-efficient Markdown designed for AI consumption. Trigger when user mentions web research, current events, latest docs, API references, technical comparisons, "search for", "look up", or asks about anything post-2025.
----
-
-# ZeroSearch v0.3
+# ZeroSearch v0.3 (已废弃 — replaced by Plugin v0.4)
 
 Patchright-powered web research skill with Chrome Daemon. First search launches Chrome (subprocess, persists across searches), subsequent searches reuse the same instance via CDP (`connect_over_cdp`) for near-instant results. Queries Google AI Mode (`udm=50`) for AI-synthesized overviews with source citations.
 

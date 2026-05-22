@@ -49,7 +49,7 @@ ZeroSearch 使用 **Chrome Daemon**（常驻浏览器进程）：
 使用 Bash 工具执行 Python CLI：
 
 ```bash
-python src/search/run.py --query "<优化后的查询>"
+python ${CLAUDE_PLUGIN_ROOT}/src/search/run.py --query "<优化后的查询>"
 ```
 
 引擎自动处理：
