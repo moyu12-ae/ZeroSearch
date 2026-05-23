@@ -132,7 +132,7 @@
     - [ ] **Given** Chrome Daemon 未运行，**When** 执行 `/zerosearch`，**Then** 自动冷启动 Chrome（~5s），行为与 v0.3 一致
     - [ ] **Given** Chrome Daemon 已运行，**When** 执行 `/zerosearch`，**Then** 热搜索 <1s，行为与 v0.3 一致
     - [ ] **Given** Chrome 被意外关闭，**When** 执行 `/zerosearch`，**Then** 自动检测并冷启动重建（幽灵连接恢复），行为与 v0.3 一致
-    - [ ] 不做自动多轮迭代 — 一次搜索返回一次结果。Claude 可建议更优关键词供用户手动追问
+    - [ ] 不做自动多轮迭代 — 搜索工程师自行评估信息充分性，必要时自动执行后续轮次（最多 3 轮，收敛即停）
 
 ---
 
