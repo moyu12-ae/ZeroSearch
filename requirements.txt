@@ -5,3 +5,7 @@ markdownify>=0.11.0
 html2text>=2020.1.16
 pytest>=7.0
 pytest-cov>=6.0
+
+# html-to-markdown requires Rust toolchain (optional).
+# Windows users without Rust: comment out the line above; the fallback
+# chain (markdownify → html2text → naive regex) handles conversion fine.

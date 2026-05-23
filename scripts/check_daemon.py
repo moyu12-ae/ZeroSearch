@@ -2,19 +2,17 @@
 """ZeroSearch Session Start Hook — check Daemon status on Claude Code session start."""
 
 import json
-import os
 import sys
+
+# 确保项目根在 sys.path（与 daemon_runner 一致）
 from pathlib import Path
+_project_root = Path(__file__).resolve().parent.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
 
-DAEMON_STATE = Path.home() / ".cache" / "zerosearch" / "daemon.json"
+from src.utils.platform import get_cache_dir, is_pid_alive as check_pid_alive
 
-def check_pid_alive(pid: int) -> bool:
-    """Check if a process with given PID is alive."""
-    try:
-        os.kill(pid, 0)
-        return True
-    except (OSError, ProcessLookupError):
-        return False
+DAEMON_STATE = get_cache_dir() / "daemon.json"
 
 def main():
     if not DAEMON_STATE.exists():

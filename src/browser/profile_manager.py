@@ -6,7 +6,7 @@ Profile 持久化管理器
 Chrome 禁止在默认 Profile 目录上开启 DevTools 远程调试，
 因此无法复用真实 Chrome Profile。
 
-Profile 路径: ~/.cache/zerosearch/chrome_profile/
+Profile 路径: 跨平台 cache dir / chrome_profile
 """
 
 import json
@@ -15,9 +15,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from src.utils.platform import get_cache_dir
 
 # 统一的独立 Profile 路径
-DEFAULT_PROFILE_DIR = Path.home() / ".cache" / "zerosearch" / "chrome_profile"
+DEFAULT_PROFILE_DIR = get_cache_dir() / "chrome_profile"
 
 
 class ProfileError(Exception):

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import os
-import signal
 import socket
 import subprocess
 import sys
@@ -19,6 +18,8 @@ import time
 import urllib.request
 from pathlib import Path
 from typing import Optional
+
+from src.utils.platform import kill_process, kill_process_tree, get_pid_on_port, get_cache_dir
 
 _PATCHRIGHT_AVAILABLE = False
 try:
@@ -254,7 +255,7 @@ class BrowserFactory:
                         # 尝试获取 profile 路径（Chrome 可能不暴露此信息）
                         profile_path = data.get(
                             "userDataDir",
-                            str(Path.home() / ".cache" / "zerosearch" / "chrome_profile"),
+                            str(get_cache_dir() / "chrome_profile"),
                         )
                         # 尝试 connect_over_cdp 验证连接可用
                         try:
@@ -263,7 +264,7 @@ class BrowserFactory:
                                 f"http://127.0.0.1:{port}"
                             )
                             # 连接成功 → 更新状态文件
-                            pid = _get_chrome_pid_on_port(port)
+                            pid = get_pid_on_port(port)
                             from src.browser.daemon_state import write_state
                             write_state(
                                 pid=pid or 0,
@@ -288,21 +289,6 @@ class BrowserFactory:
                             pass
             except Exception:
                 continue
-        return None
-
-    @staticmethod
-    def _get_chrome_pid_on_port(port: int) -> int | None:
-        """获取指定端口上监听的 Chrome 进程 PID（macOS lsof）。"""
-        import subprocess as _sp
-        try:
-            result = _sp.run(
-                ["lsof", "-ti", f"tcp:{port}"],
-                capture_output=True, text=True, timeout=3,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                return int(result.stdout.strip().split("\n")[0])
-        except Exception:
-            pass
         return None
 
     def launch_daemon(self, profile_path: Optional[Path] = None) -> "Browser":
@@ -363,10 +349,7 @@ class BrowserFactory:
         try:
             self._wait_for_cdp(port, timeout=30.0)
         except BrowserLaunchError:
-            try:
-                os.kill(proc.pid, signal.SIGTERM)
-            except Exception:
-                pass
+            kill_process(proc.pid)
             raise
 
         # daemon.json 已由守护进程写入，connect_over_cdp 获取 Browser
@@ -411,10 +394,7 @@ class BrowserFactory:
 
         if not is_cdp_responsive(state.cdp_port, timeout=2.0):
             # CDP 端口无响应，尝试 kill 旧进程
-            try:
-                os.kill(state.pid, signal.SIGKILL)
-            except Exception:
-                pass
+            kill_process(state.pid, force=True)
             cleanup_stale()
             raise BrowserLaunchError(
                 "Daemon CDP unresponsive. Restarting...",
@@ -456,31 +436,18 @@ class BrowserFactory:
             return
 
         if is_pid_alive(state.pid):
-            try:
-                os.kill(state.pid, signal.SIGTERM)
-                # 等待优雅退出
-                for _ in range(30):  # 3s, 每 100ms 检查
-                    time.sleep(0.1)
-                    if not is_pid_alive(state.pid):
-                        break
-                else:
-                    # SIGTERM 超时，SIGKILL
-                    try:
-                        os.kill(state.pid, signal.SIGKILL)
-                    except OSError:
-                        pass
-            except OSError:
-                pass
+            kill_process(state.pid)
+            # 等待优雅退出
+            for _ in range(30):  # 3s, 每 100ms 检查
+                time.sleep(0.1)
+                if not is_pid_alive(state.pid):
+                    break
+            else:
+                # 优雅退出超时，强制终止
+                kill_process(state.pid, force=True)
 
             # 清理孤儿子进程 (Chrome Helper / Renderer / GPU)
             time.sleep(0.5)
-            try:
-                subprocess.run(
-                    ["pkill", "-P", str(state.pid)],
-                    capture_output=True,
-                    timeout=3,
-                )
-            except Exception:
-                pass
+            kill_process_tree(state.pid)
 
         remove_state()

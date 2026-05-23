@@ -24,6 +24,7 @@ if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
 from src.browser.stealth import BROWSER_ARGS
+from src.utils.platform import is_windows
 
 
 def _write_language_prefs(profile_path: str) -> None:
@@ -115,8 +116,9 @@ def main():
         nonlocal _shutdown
         _shutdown = True
 
-    signal.signal(signal.SIGTERM, _handle_signal)
     signal.signal(signal.SIGINT, _handle_signal)
+    if not is_windows():
+        signal.signal(signal.SIGTERM, _handle_signal)
 
     print(f"[Daemon] Chrome 已启动, PID={os.getpid()}, 端口={port}", flush=True)
 

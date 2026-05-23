@@ -14,7 +14,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-DAEMON_STATE_PATH = Path.home() / ".cache" / "zerosearch" / "daemon.json"
+from src.utils.platform import get_cache_dir
+from src.utils.platform import is_pid_alive as _platform_is_pid_alive
+
+DAEMON_STATE_PATH = get_cache_dir() / "daemon.json"
 
 
 @dataclass
@@ -76,17 +79,12 @@ def read_state() -> Optional[DaemonState]:
 
 
 def is_pid_alive(pid: int) -> bool:
-    """检测 PID 是否存活（os.kill(pid, 0)）。
+    """检测 PID 是否存活（跨平台）。
 
-    PID <= 0 在 Unix 上为特殊值（进程组/调度器等），始终返回 False。
+    委托给 src.utils.platform.is_pid_alive，支持 Windows tasklist + Unix os.kill(0)。
+    PID <= 0 为特殊值，始终返回 False。
     """
-    if pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-        return True
-    except (OSError, ProcessLookupError):
-        return False
+    return _platform_is_pid_alive(pid)
 
 
 def is_cdp_responsive(port: int, timeout: float = 2.0) -> bool:
