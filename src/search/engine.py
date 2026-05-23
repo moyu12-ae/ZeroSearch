@@ -72,7 +72,7 @@ class SearchEngine:
         except KeyboardInterrupt:
             self._log("用户中断")
             self.shutdown()
-            sys.exit(130)
+            raise
         except Exception as e:
             self._log(f"浏览器解析失败: {e}")
             elapsed = (time.perf_counter() - t_start) * 1000
@@ -90,7 +90,6 @@ class SearchEngine:
             # Ghost Connection: Chrome 中途崩溃/关窗 → 清理 + 冷启动重试
             self._log(f"CDP 断连: {cdp_err}，清理并重试...")
             self._status("检测到浏览器连接断开，重新启动...")
-            from ..browser.browser_factory import BrowserFactory
             BrowserFactory.cleanup_daemon()
             try:
                 browser, _ = self._resolve_browser()
@@ -105,7 +104,7 @@ class SearchEngine:
                 }
         except KeyboardInterrupt:
             self._log("用户中断")
-            sys.exit(130)
+            raise
         except Exception as e:
             self._log(f"搜索异常: {e}\n{traceback.format_exc()}")
             result = {
@@ -171,6 +170,8 @@ class SearchEngine:
         Daemon 模式下：new_page() → 导航 → 提取 → page.close()
         不调用 browser.close() —— 浏览器保持存活。
         """
+        from ..browser.stealth import StealthUtils
+
         t_nav = time.perf_counter()
 
         try:
@@ -179,6 +180,9 @@ class SearchEngine:
             if _is_cdp_error(e):
                 raise CDPDisconnectError(f"CDP 断连 (new_page): {e}") from e
             raise
+
+        # 反检测：导航前随机延迟（模拟人类打开新标签后的自然停顿）
+        StealthUtils.random_delay(min_ms=200, max_ms=800)
 
         google_url = f"https://www.google.com/search?q={query}&udm=50"
         try:
@@ -194,6 +198,9 @@ class SearchEngine:
         nav_ms = (time.perf_counter() - t_nav) * 1000
         self._log(f"导航完成, 耗时={nav_ms:.0f}ms")
 
+        # 反检测：导航完成后短暂延迟（模拟人类阅读页面）
+        StealthUtils.random_delay(min_ms=100, max_ms=400)
+
         # CAPTCHA check
         captcha_msg = self._error_handler.handle_captcha(page)
         if captcha_msg:
@@ -207,7 +214,15 @@ class SearchEngine:
                     file=sys.stderr,
                 )
                 try:
-                    time.sleep(600)
+                    # 等待用户手动完成 CAPTCHA，每 5 秒输出提示
+                    waited = 0
+                    while waited < 600:
+                        time.sleep(5)
+                        waited += 5
+                        print(
+                            f"   等待验证... ({waited}s/600s, Ctrl+C 继续)",
+                            file=sys.stderr,
+                        )
                 except KeyboardInterrupt:
                     print("\n   继续搜索...", file=sys.stderr)
                 page.goto(google_url, wait_until="domcontentloaded", timeout=15000)

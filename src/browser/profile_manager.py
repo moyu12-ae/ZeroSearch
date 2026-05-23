@@ -87,14 +87,23 @@ class ProfileManager:
             try:
                 shutil.move(str(self._profile_dir), str(backup_path))
             except OSError:
-                shutil.rmtree(str(self._profile_dir), ignore_errors=True)
+                # 备份和移动均失败，仅打印警告，保留原 Profile
+                import sys as _sys
+                print(
+                    f"⚠️  无法备份损坏的 Profile: {backup_path}\n"
+                    "    将保留原 Profile 目录，可能影响 Chrome 启动。",
+                    file=_sys.stderr,
+                )
+                return
 
         self._profile_dir.mkdir(parents=True, exist_ok=True)
         self._is_new = True
 
+        import sys as _sys
         print(
             f"⚠️  Profile 已损坏，已备份至: {backup_path}\n"
-            "    已创建全新 Profile。可能需要重新登录 Google。"
+            "    已创建全新 Profile。可能需要重新登录 Google。",
+            file=_sys.stderr,
         )
 
     def save_prefs(self, prefs: dict) -> None:

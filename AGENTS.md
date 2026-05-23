@@ -72,6 +72,7 @@
    | `.anws/v1/` | ZeroSearch v0.1 | Camoufox Firefox 引擎 |
    | `.anws/v2/` | ZeroSearch v0.2 | Patchright Chromium 迁移 |
    | `.anws/v3/` | ZeroSearch v0.3 | Chrome Daemon 常驻进程 |
+   | `.anws/v4/` | ZeroSearch v0.4 | Plugin 化 + 香农提示词工程 |
 
 ---
 ## 🔄 项目状态保留区
@@ -80,52 +81,67 @@
 
 ## 📍 当前状态 (由 Workflow 自动更新)
 
-- **最新架构版本**: `.anws/v3`
-- **活动任务清单**: [05_TASKS.md](.anws/v3/05_TASKS.md) — 13 任务, 2 Sprint
-- **待办任务数**: 0 (13/13 全部完成)
-- **最近一次更新**: `2026-05-21`
+- **最新架构版本**: `.anws/v4`
+- **活动任务清单**: [05_TASKS.md](.anws/v4/05_TASKS.md) — 18 任务, 3 Sprint
+- **待办任务数**: 0 (18/18 全部完成, 3 Sprint 闭环)
+- **最近一次更新**: `2026-05-23`
+- **当前分支**: `feature/v0.4`
 
-### 🌊 Wave 1 ✅ — S1: Daemon 核心 (全部完成)
-T1.0.1, T1.1.1, T1.1.2, T1.2.1, T1.2.2, T1.3.1, T1.4.1, INT-S1
+### 🌊 Wave 1 ✅ — S2: 引擎迁移 (全部完成)
+T3.1.1, T3.2.1, T3.3.1, T3.4.1, T3.5.1, INT-S2 — 45/45 tests pass, zero code changes
 
-### 🌊 Wave 2 ✅ — S2: 系统集成 (全部完成)
-T2.1.1, T2.2.1, T2.2.2, T0.1.1, INT-S2
+### 🌊 Wave 2 ✅ — S3: 端到端验证 (全部完成)
+T0.3.1, T0.3.2, INT-S3 — 搜索链路 E2E 通过, Plugin 正常运行, 60 tests pass
+
+### 全部 Sprint 闭环 ✅
 
 ---
 
 ## 🌳 项目结构 (Project Tree)
 
 ```text
-zerosearch/                        # 仓库根 = Skill 部署位置
-├── SKILL.md                       # Claude Code Skill 定义
-├── README.md                      # 项目说明
-├── AGENTS.md                      # AI 协作协议
-├── LICENSE                        # MIT 许可证
-├── setup.sh                       # 首次安装脚本 (pip + patchright install chrome)
-├── requirements.txt               # Python 依赖 (patchright>=1.55,<2)
-├── .gitignore
-├── src/
-│   ├── browser/                   # BrowserEngine (Patchright + Chrome Daemon)
-│   ├── search/                    # SearchEngine
-│   ├── extractor/                 # ContentExtractor
-│   └── converter/                 # MarkdownConverter
-├── tests/                         # pytest 单元测试
-├── results/                       # 搜索结果 (--save, 惰性创建)
-├── .anws/v3/                      # 架构文档 (当前版本)
-└── .claude/                       # Claude Code 工作流
+zerosearch/                                    # Plugin 根目录
+├── .claude-plugin/
+│   └── plugin.json                            # Plugin 声明 (标准位置)
+├── commands/                                  # 命令定义 (AI 按需读取)
+│   ├── zerosearch.md                          # /zerosearch
+│   ├── zerosearch-config.md                   # /zerosearch-config
+│   ├── zerosearch-start.md                    # /zerosearch-start
+│   └── zerosearch-stop.md                     # /zerosearch-stop
+├── skills/                                    # Skill 定义 (子目录结构)
+│   ├── shannon-strategy/
+│   │   └── SKILL.md                           # 香农搜索策略 (几乎照搬快速搜索策略.md)
+│   └── search-execution/
+│       └── SKILL.md                           # 搜索执行 (编排引擎)
+├── hooks/
+│   ├── hooks.json                             # Hook 配置
+│   └── scripts/                               # Hook 脚本
+├── scripts/                                   # 引擎入口脚本
+├── src/                                       # Engine Runtime (从 v0.3 完整迁移)
+│   ├── browser/                               # BrowserEngine
+│   ├── search/                                # SearchEngine
+│   ├── extractor/                             # ContentExtractor
+│   └── converter/                             # MarkdownConverter
+├── tests/                                     # pytest (45 tests)
+├── setup.sh                                   # 安装脚本
+├── requirements.txt                           # Python 依赖
+├── docs/
+│   └── 搜索策略/
+│       └── 快速搜索策略.md                      # 香农信息论策略原文
+└── .anws/v4/                                  # 架构文档 (当前版本)
 ```
 
 ---
 
 ## 🧭 导航指南 (Navigation Guide)
 
-- **架构总览**: `.anws/v3/02_ARCHITECTURE_OVERVIEW.md`
-- **ADR**: `.anws/v3/03_ADR/` (跨系统决策的唯一记录源)
-- **详细设计**: 待 `/design-system` 执行后更新 (将填充 `.anws/v3/04_SYSTEM_DESIGN/`)
-- **任务清单**: 待 `/blueprint` 执行后更新 (将生成 `.anws/v3/05_TASKS.md`)
+- **架构总览**: `.anws/v4/02_ARCHITECTURE_OVERVIEW.md`
+- **ADR**: `.anws/v4/03_ADR/` (跨系统决策的唯一记录源)
+- **详细设计**: 待 `/design-system` 执行后更新 (将填充 `.anws/v4/04_SYSTEM_DESIGN/`)
+- **任务清单**: 待 `/blueprint` 执行后更新 (将生成 `.anws/v4/05_TASKS.md`)
 
 ### ADR ↔ SYSTEM_DESIGN 关系
-- **ADR** 记录跨系统决策 (如技术栈、认证方式)
+- **ADR** 记录跨系统决策 (如技术栈、Plugin 架构、香农策略)
 - **SYSTEM_DESIGN** §8 Trade-offs 引用 ADR,不复制决策内容
 - 修改 ADR 时,检查"影响范围"章节,确认引用该 ADR 的系统
 
@@ -133,6 +149,8 @@ zerosearch/                        # 仓库根 = Skill 部署位置
 
 ### 技术栈决策
 - 语言: Python ≥3.10
+- 插件框架: Claude Code Plugin (plugin.json + commands/ + skills/ + hooks/)
+- 搜索策略: 香农信息论提示词工程 (I(x) = -log₂P(x))
 - 浏览器引擎: Patchright (Chromium undetected fork)，pip 安装
 - 反检测: CDP 协议级 (Runtime.enable / Console.enable 补丁)
 - HTML 解析: BeautifulSoup4
@@ -141,21 +159,24 @@ zerosearch/                        # 仓库根 = Skill 部署位置
 - Daemon 连接: connect_over_cdp (CDP WebSocket)，0 新依赖
 
 ### 系统边界
-- **BrowserEngine**: Patchright Chrome 生命周期、Daemon 状态文件管理、冷启动/热连接双路径、反检测配置、系统代理自动继承
-- **SearchEngine**: 搜索全流程编排、Daemon 状态检测分支、LRU 缓存、分级错误降级
-- **ContentExtractor**: AI 完成检测、多语言引用提取、DOM 清洗、AI 原生精简
-- **MarkdownConverter**: HTML→Markdown、脚注格式化、文件保存
+- **Plugin Framework (S0)**: plugin.json + 4 命令 (/zerosearch, /zerosearch-config, /zerosearch-start, /zerosearch-stop) + hooks
+- **Shannon Strategy Skill (S1)**: 香农提示词工程，纯 Markdown 技能，指导 Claude 构造高信息量搜索查询
+- **Search Execution Skill (S2)**: 搜索执行编排，调用 Engine Runtime 的 Python 模块
+- **Engine Runtime (S3)**: BrowserEngine + SearchEngine + ContentExtractor + MarkdownConverter (从 v0.3 完整迁移，零逻辑修改)
 
 ### 活跃 ADR
 - **ADR-001 (v2)**: 浏览器引擎选型 — Patchright + 真 Chrome (227/240 vs Camoufox 141/240)
 - **ADR-002 (v3)**: Chrome Daemon CDP 连接策略 — connect_over_cdp (233/240 vs Python Daemon 165/240)
+- **ADR-003 (v4)**: Plugin 化架构 — 从单 SKILL.md 升级为 Claude Code Plugin，AI 按需读取文件
+- **ADR-004 (v4)**: 香农提示词工程 — 基于香农信息论的搜索查询构造策略，舍弃原样搜索
+- **ADR-005 (v4)**: 统一搜索模式 — 拒绝 Quick/Deep 分离、自动多轮、两阶段流水线
 
 ### 当前任务状态
-- 任务清单: .anws/v3/05_TASKS.md
-- 总任务数: 13, P0: 6, P1: 4, P2: 1 — ✅ 全部完成 (45 tests pass)
-- Sprint 数: 2
-- Wave 1 建议: T1.0.1 (Spike), T1.1.1, T1.1.2, T1.2.1
-- 最近更新: 2026-05-21
+- 任务清单: .anws/v4/05_TASKS.md
+- 总任务数: 18, P0: 9, P1: 3, P2: 1 — ✅ 全部完成 (18/18, 全部 Sprint 闭环)
+- Sprint 数: 3
+- 60 个测试全通过 | v0.4 架构矛盾已修复 | 幽灵连接已根治
+- 最近更新: 2026-05-22
 
 <!-- AUTO:END -->
 

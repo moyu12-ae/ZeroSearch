@@ -29,8 +29,6 @@ class BrowserContext:
     向上层 SearchEngine 暴露统一的 get_context() / navigate() / shutdown() 接口。
     """
 
-    IDLE_TIMEOUT = 300  # 5 分钟闲置视为 STALE
-
     def __init__(
         self,
         headless: bool = False,  # v0.2: 默认有头

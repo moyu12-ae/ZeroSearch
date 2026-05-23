@@ -59,7 +59,7 @@ class StealthConfig:
     })
 
     # Chromium 启动参数 (引用模块级常量)
-    browser_args: list = field(default_factory=lambda: list(BROWSER_ARGS))
+    browser_args: list[str] = field(default_factory=lambda: list(BROWSER_ARGS))
 
     # 忽略的默认参数 (移除自动化标记)
     ignore_default_args: list = field(default_factory=lambda: [

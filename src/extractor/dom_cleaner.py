@@ -113,20 +113,17 @@ def clean_html(raw_html: str) -> str:
     Parameters
     ----------
     raw_html : str
-        Raw HTML string to clean.
+        Raw HTML string to clean. None or empty returns "".
 
     Returns
     -------
     str
-        Cleaned HTML string.  Returns an empty string when the input is
-        empty or whitespace-only.
-
-    Raises
-    ------
-    ValueError
-        When *raw_html* is empty or whitespace-only.
+        Cleaned HTML string.  Returns an empty string for None, empty,
+        or whitespace-only input.
     """
-    # Edge-case: empty input
+    if not raw_html:
+        return ""
+    # Edge-case: whitespace-only input
     if not raw_html or not raw_html.strip():
         return ""
 

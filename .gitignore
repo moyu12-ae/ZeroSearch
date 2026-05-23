@@ -28,3 +28,6 @@ __pycache__/
 
 # Workspace
 zerosearch-workspace/
+
+# Search results
+results/

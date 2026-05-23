@@ -1,0 +1,13 @@
+{
+  "name": "zerosearch",
+  "version": "0.4.0",
+  "description": "ZeroSearch — Claude Code Plugin for Google AI Mode search with Shannon information theory prompt engineering",
+  "author": {
+    "name": "moyu12-ae",
+    "url": "https://github.com/moyu12-ae/ZeroSearch"
+  },
+  "homepage": "https://github.com/moyu12-ae/ZeroSearch",
+  "repository": "https://github.com/moyu12-ae/ZeroSearch",
+  "license": "MIT",
+  "keywords": ["claude-code-plugin", "search", "google", "ai-search", "shannon", "web-search"]
+}
