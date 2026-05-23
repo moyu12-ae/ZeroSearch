@@ -20,11 +20,22 @@ ZeroSearch 使用 **Chrome Daemon**（常驻浏览器进程）：
 - **停止 Daemon**: `/zerosearch-stop` 或直接关闭 Chrome 窗口
 - 独立 Chrome Profile (`~/.cache/zerosearch/chrome_profile/`)，与日常 Chrome 隔离
 
+## 首次运行检测
+
+执行搜索前检测：
+
+```bash
+python "${CLAUDE_PLUGIN_ROOT}/scripts/configure_search.py" --detect
+```
+
+- `user` 和 `project` 均为 `False` → 首次运行，引导用户执行 `/zerosearch:zerosearch-config`
+- 已有注册 → 继续
+
 ## 执行步骤
 
-### Step 1: 加载香农搜索策略
+### Step 1: 应用香农搜索策略
 
-调用 `Skill` 工具加载 `shannon-strategy` 技能，获取香农信息论搜索指导。
+`shannon-strategy` 技能已通过上下文自动激活。按照其香农信息论指导优化搜索查询。
 
 ### Step 2: 优化搜索查询
 
@@ -52,7 +63,7 @@ python "${CLAUDE_PLUGIN_ROOT}/src/search/run.py" --query "<优化后的查询>"
 - **信息不足但方向明确**（比如发现了具体人名/事件名，需要深挖细节）→ **自动执行第 2 轮搜索**，用更精准的关键词组合（如「具体人名 + 核心事件」）
 - **连续两轮结果高度重复** → 已收敛，停止迭代
 
-限制：最多 3 轮。每轮必须产生新的高信息量关键词，不能简单重复上一轮。
+限制：最多 3 轮。每轮必须产生新的高信息量关键词，不能简单重复上一轮。**迭代间隔至少 3 秒**（Google AI Mode 限流保护）。
 
 ### Step 4: 输出综合结果
 

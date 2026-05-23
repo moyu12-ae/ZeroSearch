@@ -1,9 +1,9 @@
 # ZeroSearch v0.4 质疑报告 (Challenge Report)
 
-> **审查日期**: 2026-05-22
-> **审查范围**: `.anws/v4/` 全部设计文档 + 全部 Python 源代码审计
-> **累计轮次**: 3
-> **验证手段**: 设计文档审查 + v0.3/v0.4 逐条对照 + CLI/engine/daemon 源码逐段审计
+> **审查日期**: 2026-05-23
+> **审查范围**: `.anws/v4/` 全部设计文档 + 全部命令/技能文件 + 全部源码
+> **累计轮次**: 4
+> **验证手段**: 设计文档审查 + v0.3/v0.4 逐条对照 + 文件间交叉引用扫描 + 源码审计
 
 ---
 
@@ -33,6 +33,15 @@
 | Critical | 1 | Plugin 命令中 Bash 引用使用相对路径 — 依赖 CWD=Plugin 根，实际运行时 CWD 是用户项目目录 | ⏳ 待修复 |
 | High | 1 | README CLI 模式文档与 cli.py 实现不一致 — 记录 `--profile`/`--fresh-profile` 等不存在参数 | ⏳ 待修复 |
 | Medium | 1 | SKILL.md.deprecated 仍含有效 YAML frontmatter — 误改名可触发冲突 | ⏳ 待清理 |
+
+### 第4轮 — 文件间设计矛盾扫描（当前活跃）
+
+| 严重度 | 数量 | 摘要 | 状态 |
+|--------|------|------|------|
+| Critical | 2 | PRD NG3 未同步（命令已允许自动迭代）、PRD NG7 严重过时（10文件/150行已修改） | ⏳ 待修复 |
+| High | 2 | search-execution 引用不存在的 scripts/cache.py、Rate Limiting 不在 zerosearch 命令 | ⏳ 待修复 |
+| Medium | 2 | shannon-strategy 双重角色(auto+explicit)、INT-S3 未真正闭环 | ⏳ 待修复 |
+| Low | 1 | 首次运行检测与 configure_search.py 脱节 | ⏳ 待修复 |
 
 ---
 
@@ -169,7 +178,53 @@
 
 ---
 
-## 关联契约验证
+## 第4轮详细审查: 文件间设计矛盾扫描
+
+> **审查方法**: 逐对交叉引用 PRD、ADR、命令、技能、hooks.json、README、源码，搜寻自相矛盾或过时的承诺。
+
+### 审查范围
+
+对以下文件进行了全对交叉扫描：
+
+| 文件对 | 扫描结果 |
+|--------|:--:|
+| `commands/zerosearch.md` ↔ `skills/shannon-strategy/SKILL.md` | ✅ 已修复（上一轮） |
+| `commands/zerosearch.md` ↔ `skills/search-execution/SKILL.md` | ❌ 2 处矛盾 |
+| `.anws/v4/01_PRD.md` ↔ `commands/zerosearch.md` | ❌ 2 处过时 |
+| `.anws/v4/01_PRD.md` ↔ `src/` (git diff) | ❌ NG7 严重过时 |
+| `.anws/v4/03_ADR/ADR_005_*.md` ↔ `.anws/v4/01_PRD.md` | ❌ PRD 未同步 |
+| `skills/shannon-strategy/SKILL.md` ↔ `commands/zerosearch.md` Step 1 | ❌ 双重角色 |
+| `hooks/hooks.json` ↔ 实际脚本 | ✅ 路径正确（运行时解析） |
+| `README.md` CLI 节 ↔ `src/search/cli.py` | ✅ 已同步 |
+
+### 第4轮核心发现
+
+| ID | 类别 | 严重度 | 矛盾双方 | 发现 | 影响 | 建议 |
+|----|------|--------|---------|------|------|------|
+| CH-25 | 承诺失真 | **Critical** | PRD NG3 ↔ zerosearch 命令 | PRD §3.2 仍写 "**NG3: 不做自动多轮迭代搜索**（贝叶斯更新由用户手动触发）"。但 `commands/zerosearch.md` Step 3 已改为 "**自动执行第 2 轮搜索**"。ADR-005 已更新，PRD 未同步 | 新人读 PRD 以为不做迭代，读命令发现做迭代 → 困惑 | 将 PRD NG3 改为 "不做无收敛条件的开放式多轮，允许基于香农策略的收敛迭代（最多 3 轮）" |
+| CH-26 | 承诺失真 | **Critical** | PRD NG7 ↔ git diff | PRD §3.2 "**NG7: 不修改 v0.3 底层引擎代码（纯迁移，不动逻辑）**"。实际 `git diff main -- src/` 显示 **10 个文件、+150/-44 行**已修改（孤儿恢复、sys.exit 移除、契约修复、CAPTCHA 改进等）| PRD 的 Non-Goal 陈述与事实严重不符，误导贡献者以为引擎代码是 v0.3 原封不动的 | 删除或重写 NG7，改为 "引擎代码在 v0.3 基础上做必要增强（幽灵连接根治、契约修复），核心搜索流程不变" |
+| CH-27 | 运行契约 | **High** | search-execution SKILL.md:23 ↔ 实际文件系统 | `skills/search-execution/SKILL.md:23` 写 "检查是否有相同查询的缓存结果（`scripts/cache.py` 或内存缓存）"。但 `scripts/cache.py` 不存在，实际是 `src/search/cache.py` | AI 读到这条指令可能尝试找 `scripts/cache.py` 而报错 | 改为 `src/search/cache.py` |
+| CH-28 | 运行契约 | **High** | search-execution Rate Limiting ↔ zerosearch 命令 | `skills/search-execution/SKILL.md` §Rate Limiting 规定 "连续搜索间隔至少 3 秒"。但 `commands/zerosearch.md` 的自动迭代流程**完全没有提到这个约束** | 自动迭代时 Claude 可能 <3s 连续发请求 → Google 限流 → CAPTCHA → 搜索全部失败 | 在 zerosearch 命令的 Step 3 自动迭代说明中增加 "迭代间隔至少 3 秒" 的显式约束 |
+| CH-29 | 设计闭合 | **Medium** | shannon-strategy description ↔ zerosearch Step 1 | `shannon-strategy` 的 description 写 "当用户需要搜索时**自动激活**"（auto-activate）。同时 `zerosearch.md` Step 1 说 "调用 Skill 工具**显式加载** shannon-strategy" | Claude 既被自动触发又被显式调用 → 可能读两遍同一 Skill → token 浪费 | 二选一：要么靠 auto-activate（删 commands/zerosearch.md Step 1），要么靠显式加载（从 description 去掉自动触发词） |
+| CH-30 | 设计闭合 | **Medium** | 05_TASKS.md INT-S3 ↔ 实际状态 | `05_TASKS.md` 显示 17/18 任务已勾选，INT-S3 标记为 `[x]`。但 INT-S3 要求 "完整搜索链路可运行"——实际搜索已成功运行，INT-S3 确实已完成但未正式提交闭环 | 任务清单状态与代码仓库提交记录不一致 | 在 AGENTS.md 中标记 S3 为正式完成 |
+| CH-31 | 设计闭合 | **Low** | zerosearch 首次检测 ↔ configure_search.py | `commands/zerosearch.md` "首次运行检测" 说检查 `~/.cache/zerosearch/config.json`。但实际注册用的是 `configure_search.py --detect`，两者不是同一套逻辑 | 首次运行的引导路径可能不一致 | 统一首次检测逻辑：命令中引用 `configure_search.py --detect` |
+
+### 矛盾矩阵一览
+
+```
+                PRD   ADR-005  zerosearch  shannon   search-exec  README  源码
+PRD               —     ✅        ❌NG3      ✅         ✅          ✅      ❌NG7
+ADR-005          ❌      —        ✅        ✅         ✅          ✅      ✅
+zerosearch cmd   ✅     ✅         —        ⚠️CH-29    ❌CH-28     ✅      ✅
+shannon-strategy ✅     ✅        ⚠️CH-29    —         ✅          ✅      ✅
+search-exec      ✅     ✅        ❌CH-28    ✅         —          ✅      ❌CH-27
+README           ✅     ✅        ✅        ✅         ✅          —      ✅
+源码             ❌NG7   ✅        ✅        ✅         ❌CH-27    ✅      —
+```
+
+Legend: ✅ 一致 | ❌ 矛盾 | ⚠️ 不清晰
+
+---
 
 ### 业务契约 (PRD) 验证
 
