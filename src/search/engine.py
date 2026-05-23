@@ -170,6 +170,8 @@ class SearchEngine:
         Daemon 模式下：new_page() → 导航 → 提取 → page.close()
         不调用 browser.close() —— 浏览器保持存活。
         """
+        from ..browser.stealth import StealthUtils
+
         t_nav = time.perf_counter()
 
         try:
@@ -178,6 +180,9 @@ class SearchEngine:
             if _is_cdp_error(e):
                 raise CDPDisconnectError(f"CDP 断连 (new_page): {e}") from e
             raise
+
+        # 反检测：导航前随机延迟（模拟人类打开新标签后的自然停顿）
+        StealthUtils.random_delay(min_ms=200, max_ms=800)
 
         google_url = f"https://www.google.com/search?q={query}&udm=50"
         try:
@@ -192,6 +197,9 @@ class SearchEngine:
             raise
         nav_ms = (time.perf_counter() - t_nav) * 1000
         self._log(f"导航完成, 耗时={nav_ms:.0f}ms")
+
+        # 反检测：导航完成后短暂延迟（模拟人类阅读页面）
+        StealthUtils.random_delay(min_ms=100, max_ms=400)
 
         # CAPTCHA check
         captcha_msg = self._error_handler.handle_captcha(page)
