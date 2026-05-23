@@ -228,19 +228,106 @@ class BrowserFactory:
             exit_code=1,
         )
 
+    @staticmethod
+    def _find_and_recover_orphan() -> tuple[int, str] | None:
+        """扫描端口范围，查找孤儿 Chrome 进程并尝试恢复。
+
+        当 daemon_runner 崩溃但 Chrome 仍存活时（start_new_session=True），
+        状态文件可能丢失或损坏。此方法扫描已知端口范围，检测是否有可恢复的
+        Chrome 实例。
+
+        找到可恢复实例时，更新状态文件以反映当前状态。
+        找到不可恢复实例时，kill 该进程释放端口。
+
+        Returns:
+            (cdp_port, profile_path) 如果找到可恢复的 Chrome，否则 None
+        """
+        import urllib.request as _ur
+
+        for port in range(9222, 9232 + 1):
+            try:
+                url = f"http://127.0.0.1:{port}/json/version"
+                req = _ur.Request(url)
+                with _ur.urlopen(req, timeout=1.0) as resp:
+                    if resp.status == 200:
+                        data = json.loads(resp.read().decode())
+                        # 尝试获取 profile 路径（Chrome 可能不暴露此信息）
+                        profile_path = data.get(
+                            "userDataDir",
+                            str(Path.home() / ".cache" / "zerosearch" / "chrome_profile"),
+                        )
+                        # 尝试 connect_over_cdp 验证连接可用
+                        try:
+                            pw = sync_playwright().start()
+                            browser = pw.chromium.connect_over_cdp(
+                                f"http://127.0.0.1:{port}"
+                            )
+                            # 连接成功 → 更新状态文件
+                            pid = _get_chrome_pid_on_port(port)
+                            from src.browser.daemon_state import write_state
+                            write_state(
+                                pid=pid or 0,
+                                cdp_port=port,
+                                profile_path=str(profile_path),
+                            )
+                            # 释放测试连接
+                            try:
+                                browser.close()
+                            except Exception:
+                                pass
+                            try:
+                                pw.stop()
+                            except Exception:
+                                pass
+                            return port, str(profile_path)
+                        except Exception:
+                            pass
+                        try:
+                            pw.stop()
+                        except Exception:
+                            pass
+            except Exception:
+                continue
+        return None
+
+    @staticmethod
+    def _get_chrome_pid_on_port(port: int) -> int | None:
+        """获取指定端口上监听的 Chrome 进程 PID（macOS lsof）。"""
+        import subprocess as _sp
+        try:
+            result = _sp.run(
+                ["lsof", "-ti", f"tcp:{port}"],
+                capture_output=True, text=True, timeout=3,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return int(result.stdout.strip().split("\n")[0])
+        except Exception:
+            pass
+        return None
+
     def launch_daemon(self, profile_path: Optional[Path] = None) -> "Browser":
         """冷启动 Chrome Daemon（Patchright 守护进程）
 
-        1. subprocess 启动 daemon_runner.py（Patchright launch_persistent_context）
-           → 完整的 CDP 级反检测补丁（Runtime.enable / Console.enable 等）
-        2. 等待 CDP 端点就绪
-        3. 读取 daemon.json（守护进程写入）
-        4. connect_over_cdp 获取 Browser 对象
-        5. 返回 Browser（调用方负责后续操作）
+        1. 先扫描端口查找孤儿 Chrome → 如可恢复则直接连接（根治幽灵连接）
+        2. subprocess 启动 daemon_runner.py（Patchright launch_persistent_context）
+        3. 等待 CDP 端点就绪
+        4. 读取 daemon.json
+        5. connect_over_cdp 获取 Browser 对象
+        6. 返回 Browser
 
         Returns:
             Patchright Browser 对象（通过 connect_over_cdp 连接）
         """
+        # ── Step 0: 孤儿进程恢复 ──
+        orphan = BrowserFactory._find_and_recover_orphan()
+        if orphan is not None:
+            orphan_port, _ = orphan
+            print(f"[Daemon] 恢复孤儿 Chrome (端口 {orphan_port})", file=sys.stderr)
+            try:
+                return self.connect_to_daemon()
+            except Exception as e:
+                print(f"[Daemon] 孤儿 Chrome 连接失败: {e}，重新冷启动", file=sys.stderr)
+
         # 守卫：如果已有存活 Daemon，直接连接返回
         if BrowserFactory.daemon_is_alive():
             return self.connect_to_daemon()
