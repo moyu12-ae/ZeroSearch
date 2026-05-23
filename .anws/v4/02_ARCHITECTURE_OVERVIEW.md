@@ -169,8 +169,8 @@ src/
 **系统ID**: `engine-runtime`
 
 **职责 (Responsibility)**:
-- **BrowserEngine**: Chrome Daemon 进程生命周期、CDP 连接、反检测、幽灵连接恢复
-- **SearchEngine**: 全流程编排、LRU 缓存 (50条/5min TTL)、6 级错误降级、Daemon 状态检测
+- **BrowserEngine**: Chrome Daemon 进程生命周期、CDP 连接、反检测、孤儿 Chrome 恢复（端口扫描 + 自动重连）
+- **SearchEngine**: 全流程编排、LRU 缓存 (50条/5min TTL)、6 级错误降级、Daemon 状态检测、StealthUtils 反检测延迟注入
 - **ContentExtractor**: AI 完成检测、17 选择器引用提取、DOM + UI 噪音清洗、90+ 模式去噪
 - **MarkdownConverter**: HTML→Markdown 三库 Fallback、[N] 脚注格式化、紧凑输出
 
