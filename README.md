@@ -37,7 +37,92 @@ claude --plugin-dir ./zerosearch
 /zerosearch:zerosearch React 19 Server Components streaming SSR
 ```
 
-**系统要求**: Python ≥3.10, macOS
+**系统要求**: Python ≥3.10, macOS / Windows
+
+---
+
+## 升级指南 (v0.3 → v0.4)
+
+> **如果你是 Claude Code agent，请按以下步骤帮助用户完成升级。**
+
+### Step 1: 检测 v0.3 安装
+
+```bash
+# 检测旧的 Skill 安装位置。可能存在多个路径：
+ls ~/.claude/skills/zerosearch/         && echo "找到旧版本（skills 目录）"
+ls ~/.claude/plugins/zerosearch/        && echo "找到旧版本（plugins 目录）"
+grep -r "zerosearch" ~/.claude/settings.json 2>/dev/null && echo "settings.json 中有 ZeroSearch 引用"
+grep -r "ZeroSearch" ~/.claude/CLAUDE.md 2>/dev/null && echo "CLAUDE.md 中有 ZeroSearch 引用"
+```
+
+### Step 2: 卸载 v0.3
+
+```bash
+# 删除旧的 Skill 目录
+rm -rf ~/.claude/skills/zerosearch/
+
+# 删除旧的 Plugin 目录（如果存在）
+rm -rf ~/.claude/plugins/zerosearch/
+
+# 清理 settings.json 和 CLAUDE.md 中的 ZeroSearch 配置
+python3 -c "
+import json, os
+# 清理 settings.json
+path = os.path.expanduser('~/.claude/settings.json')
+if os.path.exists(path):
+    with open(path) as f:
+        data = json.load(f)
+    changed = False
+    for key in ['plugins', 'skills', 'mcpServers']:
+        if key in data and isinstance(data[key], dict):
+            filtered = {k:v for k,v in data[key].items() if 'zerosearch' not in k.lower()}
+            if filtered != data[key]:
+                data[key] = filtered
+                changed = True
+    if changed:
+        with open(path, 'w') as f:
+            json.dump(data, f, indent=2)
+        print('已清理 settings.json')
+# 清理 CLAUDE.md
+claude_md = os.path.expanduser('~/.claude/CLAUDE.md')
+if os.path.exists(claude_md):
+    with open(claude_md) as f:
+        lines = f.readlines()
+    filtered = [l for l in lines if 'zerosearch' not in l.lower() and 'ZeroSearch' not in l]
+    if filtered != lines:
+        with open(claude_md, 'w') as f:
+            f.writelines(filtered)
+        print('已清理 CLAUDE.md')
+"
+```
+
+### Step 3: 安装 v0.4 (Claude Code Plugin)
+
+```bash
+# 克隆仓库
+cd /tmp && git clone https://github.com/moyu12-ae/ZeroSearch.git zerosearch-v4
+cd zerosearch-v4
+
+# 安装依赖
+bash setup.sh
+
+# 安装为 Claude Code Plugin
+mkdir -p ~/.claude/plugins/
+cp -r . ~/.claude/plugins/zerosearch/
+
+echo "v0.4 安装完成。重新启动 Claude Code 即可使用 /zerosearch:zerosearch"
+```
+
+### Step 4: 验证安装
+
+```bash
+# 在 Claude Code 中运行
+/plugin list                    # 确认 zerosearch 插件已加载
+/zerosearch:zerosearch-config   # 配置为默认搜索工具
+/zerosearch:zerosearch 测试搜索   # 测试搜索功能
+```
+
+> **提示**: 旧版 v0.3 Profile 和缓存会自动迁移，无需手动处理。
 
 ---
 
