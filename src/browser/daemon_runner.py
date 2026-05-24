@@ -23,7 +23,7 @@ _project_root = Path(__file__).resolve().parent.parent.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from src.browser.stealth import BROWSER_ARGS
+from src.browser.stealth import BROWSER_ARGS, StealthConfig
 from src.utils.platform import is_windows
 
 
@@ -84,18 +84,22 @@ def main():
     from patchright.sync_api import sync_playwright
     p = sync_playwright().start()
 
+    stealth = StealthConfig()
+
     ctx = p.chromium.launch_persistent_context(
         channel="chrome",
         headless=False,
         user_data_dir=profile_path,
         args=[
             f"--remote-debugging-port={port}",
-            *BROWSER_ARGS,
+            *stealth.browser_args,
         ],
+        ignore_default_args=stealth.ignore_default_args,
         handle_sigint=False,
         handle_sigterm=False,
         handle_sighup=False,
         no_viewport=False,
+        **stealth.to_context_kwargs(),
     )
 
     # 写入状态文件

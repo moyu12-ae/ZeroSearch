@@ -210,17 +210,48 @@ class SearchEngine:
                     file=sys.stderr,
                 )
                 print(
-                    "   验证完成后回到终端按 Ctrl+C 继续搜索...",
+                    "   验证完成后按 Ctrl+C 继续，或等待自动检测...",
                     file=sys.stderr,
                 )
                 try:
-                    # 等待用户手动完成 CAPTCHA，每 5 秒输出提示
                     waited = 0
-                    while waited < 600:
+                    max_wait = 60  # 每轮最多等 60s，之后自动重检
+                    while waited < max_wait:
                         time.sleep(5)
                         waited += 5
+                        # 检测 page 是否仍然存活（用户可能关窗）
+                        try:
+                            if page.is_closed():
+                                print(
+                                    "\n   浏览器窗口已关闭，搜索中止。",
+                                    file=sys.stderr,
+                                )
+                                return {
+                                    "markdown": "搜索中止: 浏览器窗口已关闭",
+                                    "citations": [],
+                                }
+                        except Exception:
+                            # page 对象不可用 → 视为已关闭
+                            print(
+                                "\n   浏览器连接已断开，搜索中止。",
+                                file=sys.stderr,
+                            )
+                            return {
+                                "markdown": "搜索中止: 浏览器连接已断开",
+                                "citations": [],
+                            }
+                        # 检测 CAPTCHA 是否已解决（页面恢复为正常内容）
+                        if not self._error_handler.handle_captcha(page):
+                            print("\n   CAPTCHA 验证完成，继续搜索...", file=sys.stderr)
+                            break
                         print(
-                            f"   等待验证... ({waited}s/600s, Ctrl+C 继续)",
+                            f"   等待验证... ({waited}s/{max_wait}s)",
+                            file=sys.stderr,
+                        )
+                    else:
+                        # 超时：可能是手动验证未完成，尝试重新导航
+                        print(
+                            "\n   等待超时，尝试重新导航...",
                             file=sys.stderr,
                         )
                 except KeyboardInterrupt:

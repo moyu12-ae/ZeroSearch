@@ -89,6 +89,234 @@ class TestViewportRandomization:
             assert 768 <= h <= 900, f"高度 {h} 超出范围"
 
 
+class TestDaemonRunnerStealthParity:
+    """TDD: daemon_runner.py 的反检测配置应与 browser_factory.py 一致
+
+    daemon_runner.py 通过 launch_persistent_context 启动 Chrome，
+    必须传递完整的反检测参数（ignore_default_args, locale, viewport 等），
+    否则 Daemon 模式的 Chrome 会带上 --enable-automation 标记。
+    """
+
+    def test_daemon_runner_uses_stealth_config(self):
+        """daemon_runner 应导入并使用 StealthConfig 提供的反检测配置。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        import ast
+
+        daemon_path = Path(__file__).parent.parent / "src" / "browser" / "daemon_runner.py"
+        source = daemon_path.read_text()
+        tree = ast.parse(source)
+
+        uses_ignore_default_args = False
+        uses_stealth_unpack = False
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                for kw in getattr(node, 'keywords', []):
+                    if kw.arg == "ignore_default_args":
+                        uses_ignore_default_args = True
+                    # 检测 **stealth.to_context_kwargs() 展开模式
+                    if kw.arg is None:  # ** 展开的 kw 没有 arg 名
+                        if isinstance(kw.value, ast.Call):
+                            if (isinstance(kw.value.func, ast.Attribute) and
+                                    kw.value.func.attr == "to_context_kwargs"):
+                                uses_stealth_unpack = True
+
+        assert uses_ignore_default_args, (
+            "daemon_runner 的 launch_persistent_context 缺少 ignore_default_args 参数，"
+            "会导致 Chrome 带上 --enable-automation 标记"
+        )
+        assert uses_stealth_unpack, (
+            "daemon_runner 的 launch_persistent_context 缺少 **to_context_kwargs() 展开，"
+            "locale/viewport/geolocation/extra_http_headers 等反检测参数未传递"
+        )
+
+    def test_daemon_runner_browser_args_complete(self):
+        """daemon_runner 的 launch_persistent_context 应传递完整反检测参数集合。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        import ast
+
+        daemon_path = Path(__file__).parent.parent / "src" / "browser" / "daemon_runner.py"
+        source = daemon_path.read_text()
+        tree = ast.parse(source)
+
+        launch_kwargs = set()
+        has_kwargs_unpack = False
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                if (isinstance(node.func, ast.Attribute) and
+                        node.func.attr == "launch_persistent_context"):
+                    for kw in getattr(node, 'keywords', []):
+                        if kw.arg:
+                            launch_kwargs.add(kw.arg)
+                        elif kw.arg is None:
+                            has_kwargs_unpack = True
+
+        required_direct_params = {
+            "channel", "headless", "user_data_dir", "args",
+            "ignore_default_args",
+        }
+
+        missing = required_direct_params - launch_kwargs
+        assert not missing, (
+            f"daemon_runner 的 launch_persistent_context 缺少直接参数: {missing}"
+        )
+        assert has_kwargs_unpack, (
+            "daemon_runner 的 launch_persistent_context 缺少 **to_context_kwargs() 展开"
+        )
+
+
+class TestCaptchaWaitResilience:
+    """TDD: CAPTCHA 等待循环应在浏览器关闭时自动退出，而非无限等待"""
+
+    def test_captcha_wait_checks_page_alive(self):
+        """CAPTCHA 等待循环应包含 page.is_closed() 检测，用户关窗后自动退出。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+
+        engine_path = Path(__file__).parent.parent / "src" / "search" / "engine.py"
+        source = engine_path.read_text()
+
+        assert "page.is_closed()" in source, (
+            "CAPTCHA 等待循环应调用 page.is_closed() 检测浏览器窗口是否被关闭"
+        )
+
+    def test_captcha_wait_max_timeout_reduced(self):
+        """CAPTCHA 最大等待时间应从 600s 降至合理范围（≤60s 或加自动重检）。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        import ast, re
+
+        engine_path = Path(__file__).parent.parent / "src" / "search" / "engine.py"
+        source = engine_path.read_text()
+
+        # 查找 while waited < N 模式
+        matches = re.findall(r'waited\s*<\s*(\d+)', source)
+        if matches:
+            max_wait = max(int(m) for m in matches)
+            assert max_wait <= 60, (
+                f"CAPTCHA 最大等待时间 {max_wait}s 过长，"
+                f"应 ≤60s 并配合自动重检机制"
+            )
+
+    def test_captcha_loop_has_early_exit_on_page_close(self):
+        """CAPTCHA 等待循环在 page 关闭时应立即退出。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        import ast
+
+        engine_path = Path(__file__).parent.parent / "src" / "search" / "engine.py"
+        source = engine_path.read_text()
+        tree = ast.parse(source)
+
+        # 在 _run_search_pipeline 方法中查找 CAPTCHA 处理区域
+        in_captcha_block = False
+        has_page_close_check = False
+        has_return_on_close = False
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name == "_run_search_pipeline":
+                for stmt in ast.walk(node):
+                    # 检测 handle_captcha 调用后的 while 循环
+                    if isinstance(stmt, ast.While):
+                        # 检查 while 循环体中是否有 page 关闭检测
+                        for sub in ast.walk(stmt):
+                            if isinstance(sub, ast.If):
+                                # 检查 if 条件中是否引用了 page 和 is_closed/closed
+                                if_stmt_source = ast.get_source_segment(source, sub.test)
+                                if if_stmt_source and "page" in if_stmt_source.lower():
+                                    has_page_close_check = True
+                            if isinstance(sub, ast.Return):
+                                has_return_on_close = True
+
+        assert has_page_close_check or has_return_on_close, (
+            "CAPTCHA 等待循环应在检测到 page 关闭或 CAPTCHA 解决后自动退出，"
+            "不应无限等待 Ctrl+C"
+        )
+
+
+class TestBrowserArgsCompleteness:
+    """TDD: BROWSER_ARGS 应包含足够多的反检测 flag 以对抗现代 Google 检测"""
+
+    def test_browser_args_count_minimum(self):
+        """BROWSER_ARGS 至少应有 10 个反检测 flag（v0.3 只 6 个，不足）。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from src.browser.stealth import BROWSER_ARGS
+        assert len(BROWSER_ARGS) >= 10, (
+            f"BROWSER_ARGS 只有 {len(BROWSER_ARGS)} 个 flag，"
+            f"现代反检测至少需要 10 个。当前: {BROWSER_ARGS}"
+        )
+
+    def test_browser_args_include_webgl_fingerprint_protection(self):
+        """应包含 WebGL/GPU 指纹防护（通过 --disable-features 合并传递）。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from src.browser.stealth import BROWSER_ARGS
+
+        disable_features_flags = [f for f in BROWSER_ARGS if f.startswith("--disable-features=")]
+        assert len(disable_features_flags) == 1, (
+            f"--disable-features 应合并为一条，避免覆盖。当前有 {len(disable_features_flags)} 条"
+        )
+        combined = disable_features_flags[0]
+        assert "IsolateOrigins" in combined, "缺少 IsolateOrigins 禁用"
+        assert "site-per-process" in combined, "缺少 site-per-process 禁用"
+
+    def test_browser_args_include_background_service_suppression(self):
+        """应包含后台服务抑制 flag，减少不必要的网络请求特征。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from src.browser.stealth import BROWSER_ARGS
+
+        background_flags = [
+            "--disable-background-networking",
+            "--disable-sync",
+            "--disable-component-update",
+        ]
+        for flag in background_flags:
+            assert flag in BROWSER_ARGS, f"缺少后台服务抑制 flag: {flag}"
+
+    def test_browser_args_include_macos_keychain_bypass(self):
+        """macOS 上应包含密码存储绕过 flag，避免 Keychain 弹窗。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from src.browser.stealth import BROWSER_ARGS
+
+        keychain_flags = [
+            "--password-store=basic",
+            "--use-mock-keychain",
+        ]
+        for flag in keychain_flags:
+            assert flag in BROWSER_ARGS, f"缺少 Keychain 绕过 flag: {flag}"
+
+    def test_browser_args_include_ipc_and_metrics_suppression(self):
+        """应包含 IPC 洪泛防护禁用和指标记录抑制 flag。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from src.browser.stealth import BROWSER_ARGS
+
+        suppression_flags = [
+            "--disable-ipc-flooding-protection",
+            "--metrics-recording-only",
+            "--mute-audio",
+        ]
+        for flag in suppression_flags:
+            assert flag in BROWSER_ARGS, f"缺少 IPC/指标抑制 flag: {flag}"
+
+    def test_disable_features_combined_properly(self):
+        """--disable-features 应将所有特性合并为一条，避免互相覆盖。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from src.browser.stealth import BROWSER_ARGS
+
+        disable_features_flags = [f for f in BROWSER_ARGS if f.startswith("--disable-features=")]
+        assert len(disable_features_flags) == 1, (
+            f"--disable-features 应只有 1 条（合并），避免覆盖。实际: {disable_features_flags}"
+        )
+
+        combined = disable_features_flags[0]
+        required_features = [
+            "IsolateOrigins",
+            "site-per-process",
+            "TranslateUI",
+            "MediaRouter",
+            "OptimizationHints",
+        ]
+        for feat in required_features:
+            assert feat in combined, f"--disable-features 缺少 {feat}"
+
+
 class TestAntiDetectionRegression:
     """回归测试：新增反检测不应破坏现有功能"""
 

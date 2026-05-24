@@ -19,6 +19,18 @@ BROWSER_ARGS = [
     "--no-default-browser-check",
     "--lang=en",
     "--disable-translate",
+    # ── 扩展反检测 flag (v0.3.1) ──
+    "--disable-background-networking",
+    "--disable-sync",
+    "--disable-component-update",
+    "--password-store=basic",
+    "--use-mock-keychain",
+    "--disable-ipc-flooding-protection",
+    "--metrics-recording-only",
+    "--mute-audio",
+    # 合并所有 --disable-features 为一条（避免互相覆盖）
+    "--disable-features=IsolateOrigins,site-per-process,TranslateUI,MediaRouter,"
+    "OptimizationHints,InterestFeedContentSuggestions,AudioServiceOutOfProcess",
 ]
 
 
