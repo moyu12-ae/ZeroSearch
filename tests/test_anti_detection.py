@@ -91,15 +91,19 @@ class TestViewportRandomization:
             assert 768 <= h <= 1080, f"高度 {h} 超出 768-1080 范围"
 
     def test_viewport_randomization_does_not_break_to_context_kwargs(self):
-        """随机化视口后 to_context_kwargs() 仍正常返回。"""
+        """to_context_kwargs() 应返回 locale/geolocation/headers（不再含 viewport）。"""
         sys.path.insert(0, str(Path(__file__).parent.parent))
         from src.browser.stealth import StealthConfig
 
         cfg = StealthConfig()
         kwargs = cfg.to_context_kwargs()
-        assert "viewport" in kwargs
-        assert "width" in kwargs["viewport"]
-        assert "height" in kwargs["viewport"]
+        # no_viewport=True 时 viewport 被忽略，不应包含
+        assert "viewport" not in kwargs, (
+            "no_viewport=True 时 viewport 参数会被忽略"
+        )
+        assert "locale" in kwargs
+        assert "geolocation" in kwargs
+        assert "extra_http_headers" in kwargs
 
 
 class TestDaemonRunnerStealthParity:
@@ -249,51 +253,50 @@ class TestBrowserArgsCompleteness:
     """TDD: BROWSER_ARGS 应包含足够多的反检测 flag 以对抗现代 Google 检测"""
 
     def test_browser_args_count_minimum(self):
-        """BROWSER_ARGS 至少应有 10 个反检测 flag（v0.3 只 6 个，不足）。"""
+        """BROWSER_ARGS 应有 ≥5 个 Patchright 未覆盖的补充 flag。"""
         sys.path.insert(0, str(Path(__file__).parent.parent))
         from src.browser.stealth import BROWSER_ARGS
-        assert len(BROWSER_ARGS) >= 10, (
-            f"BROWSER_ARGS 只有 {len(BROWSER_ARGS)} 个 flag，"
-            f"现代反检测至少需要 10 个。当前: {BROWSER_ARGS}"
+        assert len(BROWSER_ARGS) >= 5, (
+            f"BROWSER_ARGS 只应有 Patchright 未覆盖的补充 flag，"
+            f"当前 {len(BROWSER_ARGS)} 个: {BROWSER_ARGS}"
         )
 
-    def test_browser_args_include_webgl_fingerprint_protection(self):
-        """应包含 WebGL/GPU 指纹防护（通过 --disable-features 合并传递）。"""
+    def test_browser_args_patchright_provides_webgl_protection(self):
+        """Patchright 默认 --disable-features 已提供 Translate/MediaRouter/OptimizationHints 等禁用。"""
         sys.path.insert(0, str(Path(__file__).parent.parent))
         from src.browser.stealth import BROWSER_ARGS
 
+        # BROWSER_ARGS 不应包含独立的 --disable-features（会覆盖 Patchright）
         disable_features_flags = [f for f in BROWSER_ARGS if f.startswith("--disable-features=")]
-        assert len(disable_features_flags) == 1, (
-            f"--disable-features 应合并为一条，避免覆盖。当前有 {len(disable_features_flags)} 条"
+        assert len(disable_features_flags) == 0, (
+            f"BROWSER_ARGS 不应有 --disable-features（Patchright 默认提供），"
+            f"否则会覆盖 Patchright 的重要禁用项"
         )
-        combined = disable_features_flags[0]
-        assert "IsolateOrigins" in combined, "缺少 IsolateOrigins 禁用"
-        assert "site-per-process" in combined, "缺少 site-per-process 禁用"
 
-    def test_browser_args_include_background_service_suppression(self):
-        """应包含后台服务抑制 flag，减少不必要的网络请求特征。"""
+    def test_patchright_provides_background_suppression(self):
+        """后台服务抑制 flag 由 Patchright 默认提供，BROWSER_ARGS 不应重复。"""
         sys.path.insert(0, str(Path(__file__).parent.parent))
         from src.browser.stealth import BROWSER_ARGS
 
-        background_flags = [
-            "--disable-background-networking",
-            "--disable-sync",
-            "--disable-component-update",
-        ]
-        for flag in background_flags:
-            assert flag in BROWSER_ARGS, f"缺少后台服务抑制 flag: {flag}"
+        # Patchright 默认提供: --disable-background-networking, --disable-sync
+        # BROWSER_ARGS 只补充 Patchright 未覆盖的 --disable-component-update
+        assert "--disable-component-update" in BROWSER_ARGS, (
+            "BROWSER_ARGS 应包含 --disable-component-update（Patchright 未提供）"
+        )
 
-    def test_browser_args_include_macos_keychain_bypass(self):
-        """macOS 上应包含密码存储绕过 flag，避免 Keychain 弹窗。"""
+    def test_patchright_provides_keychain_bypass(self):
+        """macOS Keychain 绕过 flag 由 Patchright 默认提供，BROWSER_ARGS 不应重复。"""
         sys.path.insert(0, str(Path(__file__).parent.parent))
         from src.browser.stealth import BROWSER_ARGS
 
-        keychain_flags = [
-            "--password-store=basic",
-            "--use-mock-keychain",
-        ]
-        for flag in keychain_flags:
-            assert flag in BROWSER_ARGS, f"缺少 Keychain 绕过 flag: {flag}"
+        # Patchright 默认提供: --password-store=basic, --use-mock-keychain
+        # 验证 BROWSER_ARGS 无重复
+        assert "--password-store=basic" not in BROWSER_ARGS, (
+            "Patchright 默认提供 --password-store=basic，不应重复"
+        )
+        assert "--use-mock-keychain" not in BROWSER_ARGS, (
+            "Patchright 默认提供 --use-mock-keychain，不应重复"
+        )
 
     def test_browser_args_include_ipc_and_metrics_suppression(self):
         """应包含 IPC 洪泛防护禁用和指标记录抑制 flag。"""
@@ -308,26 +311,81 @@ class TestBrowserArgsCompleteness:
         for flag in suppression_flags:
             assert flag in BROWSER_ARGS, f"缺少 IPC/指标抑制 flag: {flag}"
 
-    def test_disable_features_combined_properly(self):
-        """--disable-features 应将所有特性合并为一条，避免互相覆盖。"""
+    def test_browser_args_no_patchright_duplicates(self):
+        """BROWSER_ARGS 不应包含 Patchright 默认已有的 flag，避免重复和覆盖。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from src.browser.stealth import BROWSER_ARGS
+
+        # Patchright 默认提供的 flag（如果在 BROWSER_ARGS 中则重复）
+        patchright_provided = {
+            "--disable-blink-features=AutomationControlled",
+            "--disable-dev-shm-usage",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--disable-background-networking",
+            "--disable-sync",
+            "--password-store=basic",
+            "--use-mock-keychain",
+        }
+
+        duplicates = set()
+        for flag in BROWSER_ARGS:
+            for pw_flag in patchright_provided:
+                if flag == pw_flag:
+                    duplicates.add(flag)
+
+        assert not duplicates, (
+            f"BROWSER_ARGS 包含 Patchright 重复 flag: {duplicates}。"
+            f"重复会导致命令行参数冲突，且 --disable-features 可能被覆盖。"
+        )
+
+    def test_no_viewport_matches_patchright_recommendation(self):
+        """BrowserFactory 和 daemon_runner 应使用 no_viewport=True 遵循 Patchright 最佳实践。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        import ast
+
+        # 检查 daemon_runner.py
+        daemon_path = Path(__file__).parent.parent / "src" / "browser" / "daemon_runner.py"
+        daemon_src = daemon_path.read_text()
+        daemon_tree = ast.parse(daemon_src)
+        for node in ast.walk(daemon_tree):
+            if isinstance(node, ast.keyword) and node.arg == "no_viewport":
+                assert node.value.value is True, (
+                    "daemon_runner.py 应使用 no_viewport=True（Patchright 推荐），"
+                    "no_viewport=False 会暴露 Playwright viewport 特征"
+                )
+
+        # 检查 browser_factory.py
+        factory_path = Path(__file__).parent.parent / "src" / "browser" / "browser_factory.py"
+        factory_src = factory_path.read_text()
+        factory_tree = ast.parse(factory_src)
+        for node in ast.walk(factory_tree):
+            if isinstance(node, ast.keyword) and node.arg == "no_viewport":
+                assert node.value.value is True, (
+                    "browser_factory.py 应使用 no_viewport=True（Patchright 推荐）"
+                )
+
+    def test_to_context_kwargs_no_viewport_when_no_viewport_true(self):
+        """当 no_viewport=True 时，to_context_kwargs() 不应包含 viewport（会被忽略）。"""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from src.browser.stealth import StealthConfig
+
+        cfg = StealthConfig()
+        kwargs = cfg.to_context_kwargs()
+        assert "viewport" not in kwargs, (
+            "no_viewport=True 时 viewport 参数会被忽略，不应包含在 to_context_kwargs() 中"
+        )
+
+    def test_browser_args_no_conflicting_disable_features(self):
+        """BROWSER_ARGS 不应包含独立的 --disable-features（会覆盖 Patchright 的合并值）。"""
         sys.path.insert(0, str(Path(__file__).parent.parent))
         from src.browser.stealth import BROWSER_ARGS
 
         disable_features_flags = [f for f in BROWSER_ARGS if f.startswith("--disable-features=")]
-        assert len(disable_features_flags) == 1, (
-            f"--disable-features 应只有 1 条（合并），避免覆盖。实际: {disable_features_flags}"
+        assert len(disable_features_flags) == 0, (
+            f"BROWSER_ARGS 不应包含 --disable-features（会覆盖 Patchright 默认），"
+            f"当前有: {disable_features_flags}"
         )
-
-        combined = disable_features_flags[0]
-        required_features = [
-            "IsolateOrigins",
-            "site-per-process",
-            "TranslateUI",
-            "MediaRouter",
-            "OptimizationHints",
-        ]
-        for feat in required_features:
-            assert feat in combined, f"--disable-features 缺少 {feat}"
 
 
 class TestFingerprintScriptInjection:
@@ -385,14 +443,27 @@ class TestFingerprintScriptInjection:
             "反指纹脚本应包含 permissions 覆盖"
         )
 
-    def test_search_pipeline_injects_init_script(self):
-        """搜索流水线应在 page 创建后注入反指纹脚本。"""
+    def test_search_pipeline_does_not_use_add_init_script_for_google(self):
+        """Google 搜索流水线不应使用 add_init_script（CDP 命令被 Google 检测）。"""
         sys.path.insert(0, str(Path(__file__).parent.parent))
+        import ast
 
         engine_path = Path(__file__).parent.parent / "src" / "search" / "engine.py"
         source = engine_path.read_text()
-        assert "add_init_script" in source, (
-            "engine.py 的搜索流水线应调用 page.add_init_script() 注入反指纹脚本"
+        tree = ast.parse(source)
+
+        # _run_search_pipeline 中不应有 add_init_script 调用
+        has_init_script = False
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name == "_run_search_pipeline":
+                for sub in ast.walk(node):
+                    if isinstance(sub, ast.Call):
+                        if isinstance(sub.func, ast.Attribute) and sub.func.attr == "add_init_script":
+                            has_init_script = True
+
+        assert not has_init_script, (
+            "_run_search_pipeline 不应调用 page.add_init_script()，"
+            "Google 会检测 CDP 注入命令并关闭连接（ERR_CONNECTION_CLOSED）"
         )
 
     def test_init_script_assigns_to_navigator_plugins(self):
@@ -599,16 +670,18 @@ class TestAntiDetectionRegression:
         sys.path.insert(0, str(Path(__file__).parent.parent))
         from src.browser.stealth import StealthUtils, StealthConfig, BROWSER_ARGS
 
-        # BROWSER_ARGS 完整
-        assert "--disable-blink-features=AutomationControlled" in BROWSER_ARGS
+        # BROWSER_ARGS 仅补充 Patchright 未覆盖的 flag
         assert len(BROWSER_ARGS) >= 5
+        # --disable-blink-features=AutomationControlled 由 Patchright 默认提供
 
         # StealthConfig 可序列化
         cfg = StealthConfig()
         kwargs = cfg.to_context_kwargs()
         assert "locale" in kwargs
-        assert "viewport" in kwargs
-        assert kwargs["viewport"]["width"] >= 1024
+        assert "geolocation" in kwargs
+        assert "extra_http_headers" in kwargs
+        # no_viewport=True 时 viewport 不在 kwargs 中（由 Patchright 管理）
+        assert cfg.viewport["width"] >= 1024
 
         # StealthUtils 方法可调用
         t0 = time.perf_counter()

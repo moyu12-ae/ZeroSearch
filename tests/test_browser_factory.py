@@ -12,10 +12,19 @@ import pytest
 class TestStealthConfig:
     """StealthConfig 配置验证"""
 
-    def test_browser_args_include_automation_controlled(self):
+    def test_browser_args_no_patchright_duplicates(self):
         from src.browser.stealth import StealthConfig
         cfg = StealthConfig()
-        assert "--disable-blink-features=AutomationControlled" in cfg.browser_args
+        # Patchright 默认提供 --disable-blink-features=AutomationControlled
+        # BROWSER_ARGS 不应重复 Patchright 已提供的 flag
+        patchright_flags = {
+            "--disable-blink-features=AutomationControlled",
+            "--disable-dev-shm-usage", "--no-first-run", "--no-default-browser-check",
+            "--disable-background-networking", "--disable-sync",
+            "--password-store=basic", "--use-mock-keychain",
+        }
+        duplicates = [f for f in cfg.browser_args if f in patchright_flags]
+        assert not duplicates, f"重复 Patchright flag: {duplicates}"
 
     def test_browser_args_excludes_no_sandbox_on_macos(self):
         from src.browser.stealth import StealthConfig
@@ -41,7 +50,8 @@ class TestStealthConfig:
         from src.browser.stealth import StealthConfig
         cfg = StealthConfig()
         kwargs = cfg.to_context_kwargs()
-        for key in ("locale", "viewport", "geolocation", "extra_http_headers"):
+        # no_viewport=True 时 viewport 被忽略，不包含在 kwargs 中
+        for key in ("locale", "geolocation", "extra_http_headers"):
             assert key in kwargs, f"Missing required key: {key}"
 
     def test_default_headless_is_false(self):

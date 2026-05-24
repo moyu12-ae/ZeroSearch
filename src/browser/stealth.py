@@ -12,25 +12,20 @@ from dataclasses import dataclass, field
 
 
 # 反检测 Chrome 启动参数 (模块级常量，StealthConfig 与 Daemon 共享)
+#
+# 注意：Patchright 启动 Chrome 时自带大量反检测 flag（包括
+# --disable-dev-shm-usage, --no-first-run, --no-default-browser-check,
+# --disable-background-networking, --disable-sync, --password-store=basic,
+# --use-mock-keychain, --disable-features=... 等 20+ 个）。
+# BROWSER_ARGS 只补充 Patchright 未覆盖的 flag，避免重复和覆盖。
 BROWSER_ARGS = [
-    "--disable-blink-features=AutomationControlled",
-    "--disable-dev-shm-usage",
-    "--no-first-run",
-    "--no-default-browser-check",
     "--lang=en",
     "--disable-translate",
-    # ── 扩展反检测 flag (v0.3.1) ──
-    "--disable-background-networking",
-    "--disable-sync",
+    # ── Patchright 未覆盖的反检测 flag ──
     "--disable-component-update",
-    "--password-store=basic",
-    "--use-mock-keychain",
     "--disable-ipc-flooding-protection",
     "--metrics-recording-only",
     "--mute-audio",
-    # 合并所有 --disable-features 为一条（避免互相覆盖）
-    "--disable-features=IsolateOrigins,site-per-process,TranslateUI,MediaRouter,"
-    "OptimizationHints,InterestFeedContentSuggestions,AudioServiceOutOfProcess",
 ]
 
 
@@ -80,10 +75,13 @@ class StealthConfig:
     ])
 
     def to_context_kwargs(self) -> dict:
-        """转换为传给 launch_persistent_context 的参数"""
+        """转换为传给 launch_persistent_context 的参数。
+
+        注意：不包含 viewport — no_viewport=True 时 viewport 被忽略，
+        浏览器窗口使用自然尺寸（Patchright 推荐）。
+        """
         return {
             "locale": self.locale,
-            "viewport": self.viewport,
             "geolocation": self.geolocation,
             "extra_http_headers": self.extra_http_headers,
         }

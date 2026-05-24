@@ -98,7 +98,7 @@ def main():
         handle_sigint=False,
         handle_sigterm=False,
         handle_sighup=False,
-        no_viewport=False,
+        no_viewport=True,  # Patchright 推荐：不强制 viewport，使用自然窗口尺寸
         **stealth.to_context_kwargs(),
     )
 

@@ -104,7 +104,7 @@ class BrowserFactory:
                 "user_data_dir": str(profile_path),
                 "args": self._stealth.browser_args,
                 "ignore_default_args": self._stealth.ignore_default_args,
-                "no_viewport": False,
+                "no_viewport": True,   # Patchright 推荐：不强制 viewport
                 "accept_downloads": False,
             }
             launch_kwargs.update(self._stealth.to_context_kwargs())

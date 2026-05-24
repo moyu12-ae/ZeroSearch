@@ -183,8 +183,9 @@ class SearchEngine:
                 raise CDPDisconnectError(f"CDP 断连 (new_page): {e}") from e
             raise
 
-        # 反指纹脚本注入（在页面 JS 执行前覆盖浏览器指纹 API）
-        page.add_init_script(StealthUtils.get_init_script())
+        # 注意：不使用 page.add_init_script() — Google 检测 CDP 注入命令
+        # 反指纹依赖 Patchright 的 CDP 级补丁（navigator.webdriver, WebGL, plugins 等）
+        # get_init_script() 保留供非 Google 站点可选使用
 
         # 反检测：导航前随机延迟（模拟人类打开新标签后的自然停顿）
         StealthUtils.random_delay(min_ms=200, max_ms=800)
