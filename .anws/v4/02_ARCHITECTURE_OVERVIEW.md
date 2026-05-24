@@ -169,10 +169,34 @@ src/
 **系统ID**: `engine-runtime`
 
 **职责 (Responsibility)**:
-- **BrowserEngine**: Chrome Daemon 进程生命周期、CDP 连接、反检测、孤儿 Chrome 恢复（端口扫描 + 自动重连）
-- **SearchEngine**: 全流程编排、LRU 缓存 (50条/5min TTL)、6 级错误降级、Daemon 状态检测、StealthUtils 反检测延迟注入
+- **BrowserEngine**: Chrome Daemon 进程生命周期、CDP 连接、**多层反检测**（CH-35: 见下）、孤儿 Chrome 恢复（端口扫描 + 自动重连）、Profile 隔离管理
+- **SearchEngine**: 全流程编排、LRU 缓存 (50条/5min TTL)、6 级错误降级、Daemon 状态检测、**CAPTCHA 智能等待**（page.is_closed 检测 + 自动重检 + 60s 超时）、**搜索间 jitter**（500-2000ms 随机间隔）、**init_script 注入**
 - **ContentExtractor**: AI 完成检测、17 选择器引用提取、DOM + UI 噪音清洗、90+ 模式去噪
 - **MarkdownConverter**: HTML→Markdown 三库 Fallback、[N] 脚注格式化、紧凑输出
+
+**S3.1 反检测层次**（v0.4 增强）:
+
+| 层级 | 检测向量 | 覆盖方式 | 文件 |
+|------|---------|---------|------|
+| **Chrome Flag** | `navigator.webdriver` | `--disable-blink-features=AutomationControlled` | `stealth.py` |
+| | `--enable-automation` 移除 | `ignore_default_args` | `stealth.py`, `daemon_runner.py` |
+| | 后台服务指纹 | 8 个扩展 flag（background/sync/component/metrics 等） | `stealth.py` |
+| | `--disable-features` 合并 | `IsolateOrigins,site-per-process,TranslateUI,MediaRouter,OptimizationHints,AudioServiceOutOfProcess` | `stealth.py` |
+| **HTTP** | User-Agent, Accept-Language | `extra_http_headers` | `stealth.py` |
+| **配置** | 固定视口指纹 | 随机化 1024-1920 × 768-1080 | `stealth.py` |
+| | 语言/时区/地理位置 | 强制 en-US / New_York / NYC | `stealth.py` |
+| **CDP 脚本注入** | `navigator.plugins/mimeTypes` | init_script: Object.defineProperty 注入 | `stealth.py` |
+| (init_script) | `navigator.permissions.query` | init_script: 守卫 + 重写 | `stealth.py` |
+| | `navigator.hardwareConcurrency` | init_script: 每次调用随机 4-8 | `stealth.py` |
+| | `WebGL 1.0 + 2.0 getParameter` | init_script: GPU vendor/renderer 噪声 | `stealth.py` |
+| | `window.chrome.runtime` | init_script: 确保对象存在 | `stealth.py` |
+| | Canvas `toDataURL/toBlob` | init_script: 像素级 XOR 噪声 | `stealth.py` |
+| | AudioContext `getChannelData` | init_script: 1e-10 级噪声 | `stealth.py` |
+| | `navigator.deviceMemory` | init_script: 伪造 8GB | `stealth.py` |
+| | `screen.colorDepth/pixelDepth` | init_script: 统一 24 | `stealth.py` |
+| **行为** | 导航速度指纹 | 200-800ms pre + 100-400ms post 随机延迟 | `engine.py` |
+| | 连续搜索模式 | 500-2000ms 搜索间 jitter | `engine.py` |
+| **CAPTCHA** | 人机验证循环 | page.is_closed 检测 + 自动重检 + 60s 超时 | `engine.py`, `error_handler.py` |
 
 **边界 (Boundary)**:
 - **输入**: search-execution-skill 的调用
@@ -189,8 +213,8 @@ src/
 **子系统清单**:
 | 子系统 | 文件 | 性能预算 | 从 v0.3 变更 |
 |--------|------|:--:|:--:|
-| BrowserEngine | `src/browser/daemon.py` | <5s 冷启动 | 无（纯迁移） |
-| SearchEngine | `src/search/engine.py` | 编排层 | 无（纯迁移） |
+| BrowserEngine | `src/browser/browser_factory.py`, `daemon_runner.py`, `daemon_state.py`, `stealth.py`, `profile_manager.py`, `context_manager.py` | <5s 冷启动 | **增强**：反检测配置补全、JS 注入、14 flags |
+| SearchEngine | `src/search/engine.py`, `error_handler.py`, `cache.py`, `cli.py`, `run.py` | 编排层 | **增强**：CAPTCHA 智能等待、jitter、init_script 注入 |
 | ContentExtractor | `src/extractor/extractor.py` | <300ms | 无（纯迁移） |
 | MarkdownConverter | `src/converter/converter.py` | <200ms | 无（纯迁移） |
 
@@ -355,21 +379,25 @@ zerosearch/                                    # Plugin 根目录
 │   ├── daemon_start.py                        #   Daemon 启动
 │   ├── daemon_stop.py                         #   Daemon 停止
 │   └── check_daemon.py                        #   Daemon 存活检测
-├── src/                                       # S3: Engine Runtime (从 v0.3 完整迁移)
+├── src/                                       # S3: Engine Runtime (从 v0.3 迁移 + 增强)
 │   ├── browser/
-│   │   ├── daemon.py                          #   Chrome Daemon + CDP
-│   │   └── daemon_state.py                    #   状态文件管理
+│   │   ├── browser_factory.py                 #   Patchright 工厂 + Daemon 管理
+│   │   ├── daemon_runner.py                   #   Chrome Daemon 独立进程
+│   │   ├── daemon_state.py                    #   状态文件管理
+│   │   ├── stealth.py                         #   反检测配置 + JS 指纹注入
+│   │   ├── profile_manager.py                 #   Chrome Profile 隔离管理
+│   │   └── context_manager.py                 #   浏览器状态机
 │   ├── search/
-│   │   ├── engine.py                          #   搜索编排
+│   │   ├── engine.py                          #   搜索编排 + CAPTCHA 智能等待 + jitter
 │   │   ├── cache.py                           #   LRU 缓存
-│   │   ├── errors.py                          #   6 级退出码
+│   │   ├── error_handler.py                   #   CAPTCHA 检测 + 错误降级
 │   │   ├── cli.py                             #   CLI 入口
-│   │   └── run.py                             #   Patchright 启动
+│   │   └── run.py                             #   Patchright 启动 (venv 包装)
 │   ├── extractor/
 │   │   └── extractor.py                       #   内容提取 + 去噪
 │   └── converter/
 │       └── converter.py                       #   HTML→MD + 脚注
-├── tests/                                     # pytest 45 tests (从 v0.3 迁移)
+├── tests/                                     # pytest 126 tests (97 原有 + 29 增强)
 ├── setup.sh                                   # 安装脚本
 ├── requirements.txt                           # Python 依赖 (不变)
 ├── README.md

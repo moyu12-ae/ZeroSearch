@@ -15,6 +15,7 @@ from typing import Optional
 
 from ..browser.browser_factory import BrowserFactory
 from ..browser.daemon_state import read_state, is_pid_alive, cleanup_stale
+from ..browser.stealth import StealthUtils
 
 from .cache import LRUCache
 from .error_handler import ErrorHandler, EXIT_CAPTCHA
@@ -66,7 +67,10 @@ class SearchEngine:
             cached["elapsed_ms"] = elapsed
             return cached
 
-        # ── Step 2: 解析浏览器 ─────────────────────────
+        # ── Step 2: 搜索间 jitter（防连续搜索模式检测）──
+        StealthUtils.random_delay(min_ms=500, max_ms=2000)
+
+        # ── Step 3: 解析浏览器 ─────────────────────────
         try:
             browser, _ = self._resolve_browser()
         except KeyboardInterrupt:
@@ -83,7 +87,7 @@ class SearchEngine:
                 "cached": False,
             }
 
-        # ── Step 3: 搜索流水线 ─────────────────────────
+        # ── Step 4: 搜索流水线 ─────────────────────────
         try:
             result = self._run_search_pipeline(browser, query)
         except CDPDisconnectError as cdp_err:
@@ -114,7 +118,7 @@ class SearchEngine:
                 "cached": False,
             }
 
-        # ── Step 4: 写入缓存 ──────────────────────────
+        # ── Step 5: 写入缓存 ──────────────────────────
         if result.get("markdown"):
             self._cache.put(cache_key, {
                 "markdown": result["markdown"],
@@ -123,7 +127,7 @@ class SearchEngine:
                 "timestamp": time.monotonic(),
             })
 
-        # ── Step 5: 保存文件 ──────────────────────────
+        # ── Step 6: 保存文件 ──────────────────────────
         if save and result.get("markdown"):
             self._save_result(query, result["markdown"])
 
@@ -170,8 +174,6 @@ class SearchEngine:
         Daemon 模式下：new_page() → 导航 → 提取 → page.close()
         不调用 browser.close() —— 浏览器保持存活。
         """
-        from ..browser.stealth import StealthUtils
-
         t_nav = time.perf_counter()
 
         try:
@@ -180,6 +182,9 @@ class SearchEngine:
             if _is_cdp_error(e):
                 raise CDPDisconnectError(f"CDP 断连 (new_page): {e}") from e
             raise
+
+        # 反指纹脚本注入（在页面 JS 执行前覆盖浏览器指纹 API）
+        page.add_init_script(StealthUtils.get_init_script())
 
         # 反检测：导航前随机延迟（模拟人类打开新标签后的自然停顿）
         StealthUtils.random_delay(min_ms=200, max_ms=800)

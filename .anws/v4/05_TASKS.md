@@ -14,8 +14,9 @@
 | S1 | Plugin 结构 | S0+S1+S2 文件验证 | plugin.json 结构合法 + 4 命令独立可读 + 2 Skills 内容完整 | 2-3h |
 | S2 | 引擎迁移 | S3 代码迁移 + 测试回归 | 全部 45 个 v0.3 测试通过 + setup.sh 可用 | 4-6h |
 | S3 | 端到端 | E2E 搜索验证 + 文档更新 | `/zerosearch:zerosearch` 完整搜索链路可运行 + README 更新 | 2-3h |
+| S4 | 反检测加固 | 反检测漏洞修复 + Bug 修复 | 126 tests pass + 9 类 JS 覆盖 + 14 flags + 文档同步 | 3-4h |
 
-**总预估工时**: 8-12h (1.5-2 工作日)
+**总预估工时**: 11-16h (2-3 工作日)
 
 ---
 
@@ -494,4 +495,99 @@ graph TD
 | Sprint 数 | 3 |
 | 总预估剩余工时 | 9h |
 
-**当前进度**: S1 (Plugin 结构) 全部完成。S2 (引擎迁移) 5 个任务待执行。S3 (端到端) 3 个任务待执行。
+**当前进度**: S1-S4 全部完成。反检测增强已就位。
+
+---
+
+## Sprint 4: 反检测加固 + Bug 修复
+
+> **关联**: `07_CHALLENGE_REPORT.md` Round 5 (CH-32~CH-38)
+> **触发**: v0.4 发布前 Code Review 发现 3 类反检测漏洞 + 6 个 Bug
+
+### Phase 1: Daemon 反检测配置补全
+
+- [x] **T4.1.1** [REQ-027]: daemon_runner.py 反检测配置与 browser_factory.py 对齐
+  - **描述**: Daemon 模式下 Chrome 缺少 `ignore_default_args`、`locale`、`viewport`、`geolocation`、`extra_http_headers`，导致 `--enable-automation` 标记未移除
+  - **输入**: `src/browser/stealth.py` StealthConfig, `src/browser/daemon_runner.py`
+  - **输出**: daemon_runner 使用 StealthConfig 实例构建 launch_persistent_context 参数
+  - **验收标准**:
+    - [ ] `ignore_default_args` 传递给 launch_persistent_context ✅
+    - [ ] `**stealth.to_context_kwargs()` 展开传递 ✅
+    - [ ] 新增 TestDaemonRunnerStealthParity 2 tests ✅
+
+### Phase 2: 反指纹脚本注入 (init_script)
+
+- [x] **T4.2.1** [REQ-027]: StealthUtils 新增 get_init_script() 反指纹 JS 注入
+  - **描述**: 通过 page.add_init_script() 注入 JS，覆盖 9 类浏览器指纹 API
+  - **覆盖向量**: plugins, permissions, hardwareConcurrency, WebGL 1+2, chrome.runtime, Canvas, AudioContext, deviceMemory, screen
+  - **输入**: `src/browser/stealth.py`, puppeteer-extra-plugin-stealth evasion 清单
+  - **输出**: `_FINGERPRINT_SCRIPT_TEMPLATE` + `get_init_script()` 方法
+  - **验收标准**:
+    - [ ] TestFingerprintScriptInjection 11 tests ✅
+    - [ ] hwConcurrency 每次调用随机化 ✅
+    - [ ] navigator.plugins 正确赋值 ✅
+    - [ ] WebGL 1.0 + 2.0 均覆盖 ✅
+    - [ ] Permissions 存在性守卫 ✅
+
+- [x] **T4.2.2** [REQ-027]: engine.py 搜索流水线注入 init_script
+  - **描述**: `_run_search_pipeline` 中 page 创建后调用 `page.add_init_script(StealthUtils.get_init_script())`
+  - **输入**: `src/search/engine.py`
+  - **输出**: 每次搜索前自动注入反指纹脚本
+  - **验收标准**:
+    - [ ] `add_init_script` 出现在 engine.py ✅
+    - [ ] StealthUtils 模块级导入 ✅
+
+### Phase 3: 行为层增强
+
+- [x] **T4.3.1** [REQ-027]: 视口随机化
+  - **描述**: StealthConfig.viewport 从固定 1280x800 改为每次实例化随机
+  - **输入**: `src/browser/stealth.py`
+  - **输出**: 随机范围 1024-1920 × 768-1080
+  - **验收标准**: TestViewportRandomization 3 tests ✅
+
+- [x] **T4.3.2** [REQ-027]: 搜索间 jitter
+  - **描述**: SearchEngine.search() 非缓存命中时注入 500-2000ms 随机延迟
+  - **输入**: `src/search/engine.py`
+  - **输出**: 缓存快速通过，非缓存搜索有间隔
+  - **验收标准**: TestSearchJitter 2 tests ✅
+
+- [x] **T4.3.3** [REQ-027]: BROWSER_ARGS 扩充 6→14
+  - **描述**: 增加后台服务抑制、Keychain 绕过、IPC 抑制、合并 disable-features
+  - **输入**: `src/browser/stealth.py`
+  - **输出**: 14 个 flag，`--disable-features` 合并为一条
+  - **验收标准**: TestBrowserArgsCompleteness 6 tests ✅
+
+### Phase 4: Bug 修复
+
+- [x] **T4.4.1** [Bug Fix]: CAPTCHA 等待循环增加 page.is_closed() 检测
+  - **描述**: 用户关窗后自动退出，不再无限等待；缩短超时 600s→60s；增加自动重检
+  - **验收标准**: TestCaptchaWaitResilience 3 tests ✅
+
+- [x] **T4.4.2** [Bug Fix]: init_script Bug 修复（6 项）
+  - **描述**: hwConcurrency 固化、navigator.plugins 未赋值、Permissions 无守卫、WebGL2 缺失、StealthUtils 作用域错误、步骤编号重复
+  - **验收标准**: 新增 5 tests（含 false positive 修正），全量 126 passed ✅
+
+### Phase 5: 文档同步
+
+- [x] **T4.5.1**: 设计文档同步反检测增强
+  - **描述**: PRD §5 表格更新、NG7 修正、测试数 45→126、架构文档增加反检测层次表、05_TASKS 增加 S4
+  - **验收标准**:
+    - [ ] PRD NG7 反映真实变更 ✅
+    - [ ] PRD 测试数 45→126 ✅
+    - [ ] Architecture §2 增加反检测层次表 ✅
+    - [ ] Architecture §8 物理结构补全 ✅
+
+---
+
+## 📊 任务统计 (更新)
+
+| 指标 | 数值 |
+|------|:--:|
+| 总任务数 | 27 (原 18 + S4 9) |
+| 已完成 | 27 (S1-S4 全部) |
+| P0 任务 | 9 |
+| P1 任务 | 3 |
+| P2 任务 | 1 |
+| 里程碑 (INT) | 3 |
+| Sprint 数 | 4 |
+| 总测试数 | 126 (97 原有 + 29 增强) |

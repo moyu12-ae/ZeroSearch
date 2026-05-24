@@ -52,7 +52,7 @@
 - **[NG4]**: 不做 WebFetch / PDF 自动下载阅读
 - **[NG5]**: 不做 Deep Research（多轮自动深度研究）
 - **[NG6]**: 不做 Citation Crawler 引用爬取
-- **[NG7]**: 引擎代码在 v0.3 基础上做必要增强（幽灵连接根治、孤儿 Chrome 恢复、StealthUtils 反检测集成、接口契约修复），核心搜索流程和公共 API 不变
+- **[NG7]**: 引擎代码在 v0.3 基础上做定向增强（反检测加固、Bug 修复），核心搜索流程和公共 API 不变
 
 ---
 
@@ -187,15 +187,15 @@
 
 | v0.3 保留（不动逻辑） | v0.3 变更 | v0.3 废弃 |
 |----------------------|----------|----------|
-| BrowserEngine (Chrome Daemon 全部) | SKILL.md → plugin.json + 模块化 commands/skills | SKILL.md 原文件 |
+| BrowserEngine (Chrome Daemon 全部) | **反检测增强**（StealthConfig 补全 Daemon、BROWSER_ARGS 6→14、StealthUtils 新增 9 类 init_script、视口随机化）| SKILL.md 原文件 |
 | ContentExtractor (全部) | 搜索入口：SKILL.md 触发 → `/zerosearch` 命令触发 | — |
 | MarkdownConverter (全部) | 搜索策略：无 → 香农信息论 Skill | — |
-| SearchEngine 编排逻辑 | 配置：ASK 引导 → `/zerosearch-config` 命令 | — |
+| SearchEngine 编排逻辑 | **Bug 修复 + 增强**（CAPTCHA 智能等待、搜索间 jitter、init_script 注入、StealthUtils 模块级导入）| — |
 | LRU 缓存 (50条/5min) | 文件位置：src/ → plugin/src/ | — |
 | 6 级退出码 | import 路径更新 | — |
 | setup.sh | setup.sh 更新安装 Plugin 步骤 | — |
 | requirements.txt | requirements.txt 不变 | — |
-| 45 个测试 | 测试路径 tests/ → plugin/tests/ | — |
+| 126 个测试（v0.3 原有 97 + 反检测增强 24 + Bug 修复 5）| 测试路径 tests/ → plugin/tests/ | — |
 
 ---
 
@@ -251,9 +251,9 @@ Step 3 — 可选追问（用户手动触发）
 | 搜索性能（热搜索） | 与 v0.3 持平 | <1s |
 | 搜索性能（缓存命中） | 与 v0.3 持平 | <1ms |
 | 模块化 | AI 只读取当前命令相关的文件 | 交叉验证 |
-| 测试回归 | 全部 45 个测试通过 | 零失败 |
-| CAPTCHA 率（未登录） | 与 v0.3 持平 | <10% |
-| CAPTCHA 率（已登录） | 与 v0.3 持平 | <1% |
+| 测试回归 | 全部 126 个测试通过（含反检测增强 29 个） | 零失败 |
+| CAPTCHA 率（未登录） | v0.4 增强（14 flags + 9 JS 覆盖 + jitter） | <5% |
+| CAPTCHA 率（已登录） | 同上 | <0.5% |
 | Token 效率 | 搜索结果输出 | 与 v0.3 一致 |
 
 ---
@@ -263,7 +263,7 @@ Step 3 — 可选追问（用户手动触发）
 - [ ] Plugin 结构合法（plugin.json 验证通过）
 - [ ] 所有 commands 可独立触发
 - [ ] 香农搜索策略 Skill 包含完整指导
-- [ ] 全部 45 个 v0.3 测试通过（零回归）
+- [ ] 全部 126 个测试通过（v0.3 原有 97 个 + 反检测/Bug 修复 29 个，零回归）
 - [ ] 新功能有对应测试覆盖
 - [ ] setup.sh 更新为 Plugin 安装流程
 - [ ] README 更新 v0.4 架构说明

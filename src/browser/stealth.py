@@ -53,8 +53,8 @@ class StealthConfig:
     timezone_id: str = "America/New_York"
 
     viewport: dict = field(default_factory=lambda: {
-        "width": 1280,
-        "height": 800,
+        "width": random.randint(1024, 1920),
+        "height": random.randint(768, 1080),
     })
 
     extra_http_headers: dict = field(default_factory=lambda: {
@@ -90,10 +90,10 @@ class StealthConfig:
 
 
 class StealthUtils:
-    """人类行为模拟工具
+    """人类行为模拟工具 + 反指纹脚本注入
 
     借鉴原版 google-ai-mode-skill browser_utils.py。
-    提供随机延迟、字符级输入、拟人点击等辅助方法。
+    提供随机延迟、字符级输入、拟人点击、浏览器指纹覆盖等辅助方法。
     """
 
     @staticmethod
@@ -144,3 +144,164 @@ class StealthUtils:
             time.sleep(random.uniform(0.1, 0.3))  # 点击前延迟
             element.click()
             time.sleep(random.uniform(0.1, 0.3))  # 点击后延迟
+
+    # ── 反指纹脚本注入 ─────────────────────────────────────────────
+
+    @staticmethod
+    def get_init_script() -> str:
+        """生成反指纹 JavaScript 注入脚本。
+
+        通过 page.add_init_script() 注入，在页面 JS 执行前覆盖浏览器指纹 API。
+        每次调用重新随机化 hardwareConcurrency 值。
+        覆盖向量:
+        - navigator.plugins / mimeTypes → 伪造 PDF Viewer 插件
+        - navigator.permissions.query → 对已知检测权限返回 granted
+        - navigator.hardwareConcurrency → 4-8 随机值
+        - WebGLRenderingContext + WebGL2RenderingContext.getParameter → 噪声 GPU 指纹
+        - window.chrome.runtime → 确保存在（防止 Chrome 扩展 API 检测）
+        """
+        return _FINGERPRINT_SCRIPT_TEMPLATE % random.randint(4, 8)
+
+
+# ── 反指纹 JavaScript 脚本模板 (%d = hardwareConcurrency, 每次调用时填充) ──
+
+_FINGERPRINT_SCRIPT_TEMPLATE = """
+(function() {
+    'use strict';
+
+    // 1. navigator.plugins — 伪造标准插件列表并赋值
+    const _plugins = [
+        {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format'},
+        {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: ''},
+        {name: 'Native Client', filename: 'internal-nacl-plugin', description: ''},
+    ];
+    const pluginArray = Object.create(PluginArray.prototype);
+    _plugins.forEach(function(p, i) {
+        const plugin = Object.create(Plugin.prototype);
+        Object.defineProperties(plugin, {
+            name: {get: function() { return p.name; }},
+            filename: {get: function() { return p.filename; }},
+            description: {get: function() { return p.description; }},
+            length: {value: 1},
+        });
+        pluginArray[i] = plugin;
+    });
+    Object.defineProperty(pluginArray, 'length', {value: _plugins.length});
+    Object.defineProperty(navigator, 'plugins', {
+        get: function() { return pluginArray; },
+        configurable: true,
+    });
+    Object.defineProperty(navigator, 'mimeTypes', {
+        get: function() { return pluginArray; },
+        configurable: true,
+    });
+
+    // 2. navigator.permissions.query — 覆盖权限查询（守卫存在性）
+    if (window.Permissions && window.Permissions.prototype) {
+        var _origQuery = window.Permissions.prototype.query;
+        window.Permissions.prototype.query = function(desc) {
+            if (desc && desc.name) {
+                var _blocked = ['midi', 'midi-sysex', 'usb', 'bluetooth', 'nfc', 'ambient-light-sensor'];
+                if (_blocked.indexOf(desc.name) !== -1) {
+                    return Promise.resolve({state: 'denied', onchange: null});
+                }
+            }
+            return Promise.resolve({state: 'prompt', onchange: null});
+        };
+    }
+
+    // 3. navigator.hardwareConcurrency — 每次调用随机化
+    var _hwConcurrency = %d;
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+        get: function() { return _hwConcurrency; },
+        configurable: true,
+    });
+
+    // 4. WebGL getParameter — 噪声 GPU 渲染器字符串 (WebGL 1.0 + 2.0)
+    var _patchWebGL = function(ctxProto) {
+        if (!ctxProto || !ctxProto.getParameter) return;
+        var _origGetParam = ctxProto.getParameter;
+        ctxProto.getParameter = function(p) {
+            var result = _origGetParam.call(this, p);
+            // UNMASKED_VENDOR_WEBGL (37445) / UNMASKED_RENDERER_WEBGL (37446)
+            if (p === 37445 && typeof result === 'string') {
+                return 'Google Inc. (Apple)';
+            }
+            if (p === 37446 && typeof result === 'string') {
+                return 'ANGLE (Apple, ANGLE Metal Renderer: Apple M3, Unspecified Version)';
+            }
+            return result;
+        };
+    };
+    _patchWebGL(WebGLRenderingContext.prototype);
+    _patchWebGL(WebGL2RenderingContext.prototype);
+
+    // 5. window.chrome.runtime — 确保存在
+    if (!window.chrome) {
+        window.chrome = {};
+    }
+    if (!window.chrome.runtime) {
+        window.chrome.runtime = {
+            id: undefined,
+            getURL: function() { return ''; },
+            connect: function() { return {onMessage: {addListener: function(){}}, onDisconnect: {addListener: function(){}}, postMessage: function(){}, disconnect: function(){}}; },
+            sendMessage: function() {},
+            onMessage: {addListener: function(){}},
+            onConnect: {addListener: function(){}},
+            lastError: undefined,
+        };
+    }
+
+    // 6. Canvas 指纹 — toDataURL/toBlob 添加轻微噪声
+    var _origToDataURL = HTMLCanvasElement.prototype.toDataURL;
+    HTMLCanvasElement.prototype.toDataURL = function() {
+        var ctx = this.getContext('2d');
+        if (ctx) {
+            var imageData = ctx.getImageData(0, 0, 1, 1);
+            if (imageData && imageData.data) {
+                imageData.data[0] = imageData.data[0] ^ 1;
+                ctx.putImageData(imageData, 0, 0);
+            }
+        }
+        return _origToDataURL.apply(this, arguments);
+    };
+    var _origToBlob = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toBlob = function(callback) {
+        var ctx = this.getContext('2d');
+        if (ctx) {
+            var imageData = ctx.getImageData(0, 0, 1, 1);
+            if (imageData && imageData.data) {
+                imageData.data[0] = imageData.data[0] ^ 1;
+                ctx.putImageData(imageData, 0, 0);
+            }
+        }
+        return _origToBlob.apply(this, arguments);
+    };
+
+    // 7. AudioContext 指纹 — getChannelData 添加噪声
+    var _origGetChannelData = AudioBuffer.prototype.getChannelData;
+    AudioBuffer.prototype.getChannelData = function(channel) {
+        var data = _origGetChannelData.call(this, channel);
+        for (var i = 0; i < Math.min(data.length, 10); i++) {
+            data[i] += (Math.random() - 0.5) * 1e-10;
+        }
+        return data;
+    };
+
+    // 8. navigator.deviceMemory — 伪造为常见值
+    Object.defineProperty(navigator, 'deviceMemory', {
+        get: function() { return 8; },
+        configurable: true,
+    });
+
+    // 9. screen 属性 — 覆盖 colorDepth/pixelDepth
+    Object.defineProperty(screen, 'colorDepth', {
+        get: function() { return 24; },
+        configurable: true,
+    });
+    Object.defineProperty(screen, 'pixelDepth', {
+        get: function() { return 24; },
+        configurable: true,
+    });
+})();
+"""

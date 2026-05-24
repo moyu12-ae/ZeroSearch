@@ -23,5 +23,6 @@ ZeroSearch v0.4：从单 SKILL.md 升级为 Claude Code Plugin，引入基于香
 - [x] 02_ARCHITECTURE_OVERVIEW.md
 - [x] 03_ADR/
 - [ ] 04_SYSTEM_DESIGN/
-- [ ] 05_TASKS.md (由 /blueprint 生成)
+- [x] 05_TASKS.md (已生成 + 已增加 S4 反检测任务)
 - [x] 06_CHANGELOG.md
+- [x] 07_CHALLENGE_REPORT.md (Round 5 反检测文档同步审计)

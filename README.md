@@ -1,6 +1,6 @@
 <div align="center">
 
-# ZeroSearch v0.4
+# ZeroSearch v0.42
 
 ### Claude Code Plugin — AI 增强搜索
 
@@ -8,8 +8,8 @@ Powered by **Patchright** + **Chrome Daemon** + **香农信息论提示词工程
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-purple.svg)](https://code.claude.com/docs/en/plugins)
-[![Patchright](https://img.shields.io/badge/Patchright-v1.58-green.svg)](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright)
-[![Tests](https://img.shields.io/badge/tests-67%20passed-brightgreen.svg)]()
+[![Patchright](https://img.shields.io/badge/Patchright-v1.59-green.svg)](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright)
+[![Tests](https://img.shields.io/badge/tests-126%20passed-brightgreen.svg)]()
 
 </div>
 
@@ -41,7 +41,20 @@ claude --plugin-dir ./zerosearch
 
 ---
 
-## 升级指南 (v0.3 → v0.4)
+## 升级指南
+
+### v0.4 → v0.42
+
+```bash
+# 更新到 v0.42
+cd ~/.claude/plugins/zerosearch/ && git pull origin main
+bash setup.sh
+python -m pytest tests/ -q  # 验证 126 passed
+```
+
+> **变更**: 反检测全面加固（14 flags + 9 JS 覆盖 + jitter + CAPTCHA 重写），底层引擎无 Breaking Change。
+
+### v0.3 → v0.4
 
 > **如果你是 Claude Code agent，请按以下步骤帮助用户完成升级。**
 
@@ -132,20 +145,34 @@ echo "v0.4 安装完成。重新启动 Claude Code 即可使用 /zerosearch:zero
 - **贝叶斯收敛迭代** — 信息不足时自动追加搜索（最多 3 轮），收敛即停，无需手动追问
 - **Chrome Daemon** — 首次冷启动 ~5s，后续热搜索 <1s，Chrome 保持常驻
 - **孤儿 Chrome 恢复** — 冷启动前主动扫端口，发现孤儿 Chrome 直接热连接，根治幽灵连接
-- **反检测增强** — CDP 协议级反检测 + StealthUtils 随机延迟注入搜索流水线
+- **多层反检测** — 14 Chrome flags + 9 类 JS API 覆盖（plugins/permissions/WebGL/Canvas/AudioContext/chrome.runtime 等）+ CDP 脚本注入 + 视口随机化 + 搜索间 jitter
+- **CAPTCHA 智能处理** — 自动检测窗口关闭 + CAPTCHA 解决后自动恢复 + 60s 超时重导航
 - **排他配置** — 用户级/项目级互斥，一键切换自动清除旧注册
 - **Plugin 模块化** — 4 个命令 + 2 个技能独立文件，AI 按需读取不浪费 Token
 
 ---
 
-## v0.4 更新
+## 版本更新
+
+### v0.42 — 反检测全面加固
+
+- **反检测 5 层体系**：Chrome Flag (14) → HTTP 头 → CDP 脚本注入 (9 类 JS API) → 行为模拟 → CAPTCHA 智能处理
+- **Daemon 反检测配置补全**：`ignore_default_args` + `locale/viewport/geolocation/headers` 全量传递
+- **反指纹 JS 注入**：覆盖 `navigator.plugins`、`permissions`、`hardwareConcurrency`、`WebGL 1.0+2.0`、`chrome.runtime`、`Canvas toDataURL`、`AudioContext`、`deviceMemory`、`screen`
+- **视口随机化**：每次搜索 1024-1920 × 768-1080 随机分辨率
+- **搜索间 jitter**：500-2000ms 随机间隔，防连续搜索模式检测
+- **CAPTCHA 流程重写**：`page.is_closed()` 检测 + CAPTCHA 自动重检 + 60s 超时（原 600s）
+- **Bug 修复**：hwConcurrency 随机化、navigator.plugins 赋值、Permissions 守卫、WebGL2 覆盖、StealthUtils 作用域修复
+- **测试**：126 tests（v0.3 原有 97 + 反检测增强 29），零回归
+
+### v0.4 — Plugin 化 + 香农提示词工程
 
 | 维度 | v0.3 | v0.4 |
 |------|------|------|
 | **架构** | 单 SKILL.md | Claude Code Plugin（4 commands + 2 skills + hooks） |
 | **搜索策略** | 原样转发查询 | 香农信息论 + 自动收敛迭代 |
 | **幽灵连接** | 被动检测 → 冷启动重试 | 主动扫端口 → 孤儿 Chrome 恢复 |
-| **反检测** | StealthUtils 未集成 | 搜索流水线随机延迟注入 |
+| **反检测** | StealthUtils 未集成 | CDP 级 + 搜索流水线延迟注入 |
 | **配置** | 手动 grep | 排他性一键互斥 |
 | **测试** | 45 tests | 67 tests（含 TDD 验证） |
 | **审计** | — | 4 轮 challenge，67 问题闭环 |
@@ -184,8 +211,8 @@ python src/search/run.py --stop                                 # 停止 Daemon
 |------|------|
 | **S0: Plugin Framework** | plugin.json + 4 命令 + hooks |
 | **S1: Shannon Strategy** | 香农信息论搜索策略（纯 Markdown Skill） |
-| **S2: Search Execution** | 搜索编排 + LRU 缓存 + 反检测延迟 + 错误降级 |
-| **S3: Engine Runtime** | Chrome Daemon + 内容提取 + Markdown 转换 |
+| **S2: Search Execution** | 搜索编排 + LRU 缓存 + 反检测注入 + CAPTCHA 处理 + 错误降级 |
+| **S3: Engine Runtime** | Chrome Daemon + 多层反检测 + 内容提取 + Markdown 转换 |
 
 ### 项目结构
 
@@ -197,13 +224,13 @@ zerosearch/
 ├── hooks/hooks.json              # Hook 配置
 ├── scripts/                      # 配置脚本 + Daemon 检测
 ├── src/                          # Python 引擎
-│   ├── browser/                  # Chrome Daemon + 反检测 + 孤儿恢复
-│   ├── search/                   # 搜索编排 + LRU 缓存 + StealthUtils 集成
+│   ├── browser/                  # Chrome Daemon + 5 层反检测 + 孤儿恢复
+│   ├── search/                   # 搜索编排 + LRU 缓存 + CAPTCHA 处理 + jitter
 │   ├── extractor/                # AI 内容提取 + 引用 + 去噪
 │   └── converter/                # HTML→Markdown + 脚注格式化
-├── tests/                        # pytest (67 tests)
+├── tests/                        # pytest (126 tests)
 ├── docs/                         # 香农策略原文
-└── .anws/v4/                     # 架构文档 (4 轮审计)
+└── .anws/v4/                     # 架构文档 (5 轮审计)
 ```
 
 ---
@@ -227,7 +254,7 @@ zerosearch/
 ## 测试
 
 ```bash
-python -m pytest tests/ -v          # 67 tests
+python -m pytest tests/ -v          # 126 tests (97 原有 + 29 增强)
 ```
 
 ---
